@@ -10,9 +10,11 @@ import (
 	"github.com/tliron/glsp/server"
 
 	_ "github.com/tliron/commonlog/simple"
+
+	"github.com/simonrw/cfn-lsp/handlers"
 )
 
-const lsName = "CloudFormation LSP"
+const lsName = "CloudFormatin LSP"
 
 var version = "0.0.1"
 var handler protocol.Handler
@@ -24,6 +26,8 @@ func main() {
 		Initialize: initialize,
 		Shutdown:   shutdown,
 		// TextDocumentCompletion: handlers.TextDocumentCompletion,
+		TextDocumentDefinition: handlers.TextDocumentDefinition,
+		TextDocumentDidSave: handlers.TextDocumentDidSave,
 	}
 
 	server := server.NewServer(&handler, lsName, true)
@@ -34,7 +38,7 @@ func initialize(ctx *glsp.Context, params *protocol.InitializeParams) (any, erro
 	commonlog.NewInfoMessage(0, "Initializing server...")
 
 	capabilities := handler.CreateServerCapabilities()
-	capabilities.CompletionProvider = &protocol.CompletionOptions{}
+	capabilities.DefinitionProvider = &protocol.DefinitionOptions{}
 
 	return protocol.InitializeResult{
 		Capabilities: capabilities,
