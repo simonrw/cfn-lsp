@@ -6,6 +6,8 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.98"
 async-lsp = { version = "0.2.2", features = ["tokio"] }
+async-trait = "0.1.88"
+futures = "0.3.31"
 tokio = { version = "1.45.1", features = ["full"] }
 tower = "0.5.2"
 tracing = "0.1.41"
