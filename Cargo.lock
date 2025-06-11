@@ -180,6 +180,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9555578bc9e57714c812a1f84e4fc5b4d21fcb063490c624de019f7464c91268"
 
 [[package]]
+name = "cfn-lsp"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-lsp",
+ "async-trait",
+ "cfn-lsp-schema",
+ "futures",
+ "prettyplease",
+ "quote",
+ "serde",
+ "serde_json",
+ "spanned_json_parser",
+ "syn",
+ "tokio",
+ "tower",
+ "tracing",
+ "tracing-subscriber",
+ "yaml-rust",
+]
+
+[[package]]
 name = "cfn-lsp-schema"
 version = "0.1.0"
 dependencies = [
@@ -850,6 +872,16 @@ name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
+
+[[package]]
+name = "prettyplease"
+version = "0.2.33"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9dee91521343f4c5c6a63edd65e54f31f5c92fe8978c40a4282f8372194c6a7d"
+dependencies = [
+ "proc-macro2",
+ "syn",
+]
 
 [[package]]
 name = "proc-macro2"
@@ -1527,25 +1559,6 @@ name = "writeable"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea2f10b9bb0928dfb1b42b65e1f9e36f7f54dbdf08457afefb38afcdec4fa2bb"
-
-[[package]]
-name = "yaml-rs-testing"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-lsp",
- "async-trait",
- "cfn-lsp-schema",
- "futures",
- "serde",
- "serde_json",
- "spanned_json_parser",
- "tokio",
- "tower",
- "tracing",
- "tracing-subscriber",
- "yaml-rust",
-]
 
 [[package]]
 name = "yaml-rust"

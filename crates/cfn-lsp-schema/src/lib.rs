@@ -22,13 +22,14 @@ pub enum SchemaError {
 
 pub type Result<T> = std::result::Result<T, SchemaError>;
 
-#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Handler {
     Create,
     Read,
     Update,
     Delete,
 }
+#[derive(Debug)]
 pub struct ResourceInfo {
     pub type_name: String,
     pub description: Option<String>,
@@ -82,12 +83,12 @@ where
     Ok(resource_info)
 }
 
-pub fn extract_from_bundle<R>(reader: R) -> Result<HashMap<String, ResourceInfo>>
+pub fn extract_from_bundle<R>(reader: R) -> Result<Vec<ResourceInfo>>
 where
     R: std::io::Read + std::io::Seek,
 {
     let mut archive = zip::ZipArchive::new(reader).map_err(SchemaError::ZipError)?;
-    let mut resources = HashMap::new();
+    let mut resources = Vec::new();
 
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)?;
@@ -99,7 +100,7 @@ where
                     source: Box::new(source),
                 }
             })?;
-            resources.insert(resource_info.type_name.clone(), resource_info);
+            resources.push(resource_info);
         }
     }
     Ok(resources)
@@ -138,7 +139,7 @@ mod tests {
         let f = std::fs::File::open(filename).unwrap();
         let result = extract_from_bundle(f).unwrap();
         assert!(!result.is_empty());
-        assert!(result.contains_key("AWS::IAM::Role"));
-        assert!(result.contains_key("AWS::S3::Bucket"));
+        assert!(result.iter().any(|r| r.type_name == "AWS::IAM::Role"));
+        assert!(result.iter().any(|r| r.type_name == "AWS::S3::Bucket"));
     }
 }
