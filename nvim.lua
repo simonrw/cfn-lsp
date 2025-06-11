@@ -5,7 +5,7 @@
 -- })
 vim.lsp.config["cfn-lsp"] = {
     cmd = { "/Users/simon/.cargo-target/debug/yaml-rs-testing" },
-    filetypes = { "yaml" },
+    filetypes = { "yaml", "json" },
 }
 
 vim.lsp.enable("cfn-lsp")

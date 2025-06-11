@@ -6,12 +6,11 @@ use async_lsp::{
     lsp_types::{
         GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverContents, HoverParams,
         HoverProviderCapability, InitializeParams, InitializeResult, OneOf, Position, Range,
-        ServerCapabilities, request::GotoDefinition,
+        ServerCapabilities,
     },
     router::Router,
 };
 use futures::future::BoxFuture;
-use serde::Deserialize;
 use spanned_json_parser::SpannedValue;
 use tower::ServiceBuilder;
 use tracing::Level;
@@ -53,7 +52,7 @@ impl yaml_rust::parser::MarkedEventReceiver for CloudformationParser {
     }
 }
 
-fn parse_cfn() {
+fn parse_cfn_yaml() {
     let contents = std::fs::read_to_string("./template.yml").unwrap();
     let mut loader = CloudformationParser::default();
     let mut parser = yaml_rust::parser::Parser::new(contents.chars());
@@ -65,6 +64,7 @@ fn parse_cfn() {
 struct ServerState {
     client: ClientSocket,
     counter: i32,
+    jump_targets: Vec<JumpTarget>,
 }
 
 impl LanguageServer for ServerState {
@@ -129,7 +129,11 @@ impl LanguageServer for ServerState {
 
 impl ServerState {
     fn new_router(client: ClientSocket) -> Router<Self> {
-        let mut router = Router::from_language_server(Self { client, counter: 0 });
+        let mut router = Router::from_language_server(Self {
+            client,
+            counter: 0,
+            jump_targets: Vec::new(),
+        });
         router.event(Self::on_tick);
         router
     }
@@ -183,7 +187,7 @@ fn extract_jump_targets(
 }
 
 // main
-fn main() {
+fn parse_json_main() {
     let contents = std::fs::read_to_string("template.json").expect("reading template json");
     let parsed = spanned_json_parser::parse(&contents).unwrap();
 
@@ -210,7 +214,7 @@ fn main() {
 }
 
 #[tokio::main]
-async fn lsp_main() -> anyhow::Result<()> {
+async fn main() -> anyhow::Result<()> {
     let mut log_file = std::fs::File::create("/tmp/server.log").context("creating log file")?;
     tracing_subscriber::fmt()
         .with_max_level(Level::DEBUG)
