@@ -11,11 +11,19 @@ use async_lsp::{
     router::Router,
 };
 use futures::future::BoxFuture;
+use serde::Deserialize;
+use spanned_json_parser::SpannedValue;
 use tower::ServiceBuilder;
 use tracing::Level;
 use yaml_rust::Event;
 
 // parsing
+#[derive(Debug)]
+struct Template {
+    version: Option<String>,
+    description: Option<String>,
+    resources: HashMap<String, Resource>,
+}
 
 #[derive(Debug)]
 struct Resource {}
@@ -135,10 +143,74 @@ impl ServerState {
 
 struct TickEvent;
 
+#[derive(Debug, Clone)]
+struct JumpTarget {
+    name: String,
+    location: Range,
+    r#type: TargetType,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum TargetType {
+    Resource,
+    Parameter,
+    Mapping,
+}
+
+fn extract_jump_targets(
+    objects: &HashMap<String, SpannedValue>,
+    target_type: TargetType,
+) -> Vec<JumpTarget> {
+    let mut targets = Vec::new();
+    for (name, value) in objects {
+        let range = Range {
+            start: Position {
+                line: value.start.line as u32,
+                character: value.start.col as u32,
+            },
+            end: Position {
+                line: value.end.line as u32,
+                character: value.end.col as u32,
+            },
+        };
+        targets.push(JumpTarget {
+            name: name.to_string(),
+            location: range,
+            r#type: target_type,
+        });
+    }
+    targets
+}
+
 // main
+fn main() {
+    let contents = std::fs::read_to_string("template.json").expect("reading template json");
+    let parsed = spanned_json_parser::parse(&contents).unwrap();
+
+    // extract reference targets
+    let mut targets = Vec::<JumpTarget>::new();
+    let template = parsed.value.unwrap_object();
+
+    let resources = template["Resources"].value.unwrap_object();
+    targets.extend(extract_jump_targets(resources, TargetType::Resource));
+    if let Some(parameters) = template.get("Parameters") {
+        targets.extend(extract_jump_targets(
+            parameters.value.unwrap_object(),
+            TargetType::Parameter,
+        ));
+    }
+    if let Some(mappings) = template.get("Mappings") {
+        targets.extend(extract_jump_targets(
+            mappings.value.unwrap_object(),
+            TargetType::Mapping,
+        ));
+    }
+
+    // TODO extract jump sources
+}
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn lsp_main() -> anyhow::Result<()> {
     let mut log_file = std::fs::File::create("/tmp/server.log").context("creating log file")?;
     tracing_subscriber::fmt()
         .with_max_level(Level::DEBUG)
