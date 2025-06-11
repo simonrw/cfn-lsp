@@ -4,9 +4,10 @@ use anyhow::{Context, Result};
 use async_lsp::{
     ClientSocket, LanguageServer, ResponseError,
     lsp_types::{
-        GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverContents, HoverParams,
-        HoverProviderCapability, InitializeParams, InitializeResult, OneOf, Position, Range,
-        ServerCapabilities,
+        DidChangeTextDocumentParams, DidOpenTextDocumentParams, GotoDefinitionParams,
+        GotoDefinitionResponse, Hover, HoverContents, HoverParams, HoverProviderCapability,
+        InitializeParams, InitializeResult, OneOf, Position, Range, ServerCapabilities,
+        TextDocumentItem,
     },
     router::Router,
 };
@@ -65,12 +66,12 @@ struct ServerState {
     client: ClientSocket,
     counter: i32,
     jump_targets: Vec<JumpTarget>,
+    current_document: Option<TextDocumentItem>,
 }
 
 impl LanguageServer for ServerState {
     type Error = ResponseError;
 
-    #[doc = r" Should always be defined to `ControlFlow<Result<()>>` for user implementations."]
     type NotifyResult = ControlFlow<async_lsp::Result<()>>;
 
     fn initialize(
@@ -88,6 +89,17 @@ impl LanguageServer for ServerState {
             })
         })
     }
+
+    // document synchronisation
+    fn did_open(&mut self, params: DidOpenTextDocumentParams) -> Self::NotifyResult {
+        todo!()
+    }
+
+    fn did_change(&mut self, params: DidChangeTextDocumentParams) -> Self::NotifyResult {
+        todo!()
+    }
+
+    // language features
 
     fn hover(
         &mut self,
@@ -133,6 +145,7 @@ impl ServerState {
             client,
             counter: 0,
             jump_targets: Vec::new(),
+            current_document: None,
         });
         router.event(Self::on_tick);
         router
