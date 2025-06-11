@@ -4,7 +4,7 @@
 -- 	root_dir = vim.fn.getcwd(),
 -- })
 vim.lsp.config["cfn-lsp"] = {
-    cmd = { "./cfn-lsp" },
+    cmd = { "/Users/simon/.cargo-target/debug/yaml-rs-testing" },
     filetypes = { "yaml" },
 }
 

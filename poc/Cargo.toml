@@ -4,4 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = "1.0.98"
+async-lsp = { version = "0.2.2", features = ["tokio"] }
+tokio = { version = "1.45.1", features = ["full"] }
+tower = "0.5.2"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 yaml-rust = "0.4.5"
