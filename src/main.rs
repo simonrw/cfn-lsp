@@ -1,15 +1,20 @@
-use std::{collections::HashMap, ops::ControlFlow};
+use std::{collections::HashMap, io::Write, ops::ControlFlow, time::Duration};
 
 use anyhow::{Context, Result};
 use async_lsp::{
     ClientSocket, LanguageServer, ResponseError,
+    client_monitor::ClientProcessMonitorLayer,
+    concurrency::ConcurrencyLayer,
     lsp_types::{
         DidChangeTextDocumentParams, DidOpenTextDocumentParams, GotoDefinitionParams,
         GotoDefinitionResponse, Hover, HoverContents, HoverParams, HoverProviderCapability,
-        InitializeParams, InitializeResult, OneOf, Position, Range, ServerCapabilities,
-        TextDocumentItem,
+        InitializeParams, InitializeResult, MarkupContent, MarkupKind, OneOf, Position, Range,
+        ServerCapabilities, ServerInfo, TextDocumentItem, notification, request,
     },
+    panic::CatchUnwindLayer,
     router::Router,
+    server::LifecycleLayer,
+    tracing::TracingLayer,
 };
 use futures::future::BoxFuture;
 use spanned_json_parser::SpannedValue;
@@ -64,11 +69,11 @@ fn parse_cfn_yaml() {
 
 struct ServerState {
     client: ClientSocket,
-    counter: i32,
     jump_targets: Vec<JumpTarget>,
     current_document: Option<TextDocumentItem>,
 }
 
+/*
 impl LanguageServer for ServerState {
     type Error = ResponseError;
 
@@ -138,25 +143,26 @@ impl LanguageServer for ServerState {
         Box::pin(async move { Ok(Some(res)) })
     }
 }
+    */
 
-impl ServerState {
-    fn new_router(client: ClientSocket) -> Router<Self> {
-        let mut router = Router::from_language_server(Self {
-            client,
-            counter: 0,
-            jump_targets: Vec::new(),
-            current_document: None,
-        });
-        router.event(Self::on_tick);
-        router
-    }
+// impl ServerState {
+//     fn new_router(client: ClientSocket) -> Router<Self> {
+//         let mut router = Router::from_language_server(Self {
+//             client,
+//             counter: 0,
+//             jump_targets: Vec::new(),
+//             current_document: None,
+//         });
+//         router.event(Self::on_tick);
+//         router
+//     }
 
-    fn on_tick(&mut self, _: TickEvent) -> ControlFlow<async_lsp::Result<()>> {
-        tracing::info!("tick");
-        self.counter += 1;
-        ControlFlow::Continue(())
-    }
-}
+//     fn on_tick(&mut self, _: TickEvent) -> ControlFlow<async_lsp::Result<()>> {
+//         tracing::info!("tick");
+//         self.counter += 1;
+//         ControlFlow::Continue(())
+//     }
+// }
 
 struct TickEvent;
 
@@ -228,7 +234,7 @@ fn parse_json_main() {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let mut log_file = std::fs::File::create("/tmp/server.log").context("creating log file")?;
+    let log_file = std::fs::File::create("/tmp/server.log").context("creating log file")?;
     tracing_subscriber::fmt()
         .with_max_level(Level::DEBUG)
         .with_ansi(false)
@@ -250,7 +256,63 @@ async fn main() -> anyhow::Result<()> {
             }
         });
 
-        ServiceBuilder::new().service(ServerState::new_router(client))
+        let mut router = Router::new(ServerState {
+            client: client.clone(),
+            jump_targets: Vec::new(),
+            current_document: None,
+        });
+        router
+            .request::<request::Initialize, _>(|_, _params| async move {
+                tracing::debug!("server initialized");
+                Ok(InitializeResult {
+                    capabilities: ServerCapabilities {
+                        hover_provider: Some(HoverProviderCapability::Simple(true)),
+                        definition_provider: Some(OneOf::Left(true)),
+                        ..Default::default()
+                    },
+                    server_info: Some(ServerInfo {
+                        name: "cfn-lsp".to_string(),
+                        version: Some("0.0.1".to_string()),
+                    }),
+                })
+            })
+            .request::<request::HoverRequest, _>(|_, params| async move {
+                tracing::debug!(?params, "got hover request");
+                Ok(Some(Hover {
+                    contents: HoverContents::Markup(MarkupContent {
+                        kind: MarkupKind::PlainText,
+                        value: "Hover information".to_string(),
+                    }),
+                    range: None,
+                }))
+            })
+            .notification::<notification::Initialized>(|_, params| {
+                tracing::info!(initialized_params = ?params, "server initialized");
+                ControlFlow::Continue(())
+            })
+            .notification::<notification::DidSaveTextDocument>(|_, params| {
+                tracing::debug!(save_params = ?params, "document saved");
+                ControlFlow::Continue(())
+            })
+            .notification::<notification::DidChangeTextDocument>(|_, params| {
+                tracing::debug!(change_params = ?params, "document changed");
+                ControlFlow::Continue(())
+            })
+            .notification::<notification::DidOpenTextDocument>(|_, params| {
+                tracing::debug!(open_params = ?params, "document did open");
+                ControlFlow::Continue(())
+            })
+            .event::<TickEvent>(|_st, _| {
+                tracing::debug!("tick");
+                ControlFlow::Continue(())
+            });
+        ServiceBuilder::new()
+            .layer(TracingLayer::default())
+            .layer(LifecycleLayer::default())
+            .layer(CatchUnwindLayer::default())
+            .layer(ConcurrencyLayer::default())
+            .layer(ClientProcessMonitorLayer::new(client))
+            .service(router)
     });
 
     let (stdin, stdout) = (
