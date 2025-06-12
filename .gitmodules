@@ -1,0 +1,3 @@
+[submodule "cfn-lint"]
+	path = cfn-lint
+	url = https://github.com/aws-cloudformation/cfn-lint
