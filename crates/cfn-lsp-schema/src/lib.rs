@@ -35,6 +35,7 @@ where
     let mut resource_entry_tokens = Vec::new();
     for resource in resources {
         let type_name = resource.type_name;
+
         let description = match resource.description {
             Some(d) => quote::quote! { Some(#d.to_string()) },
             None => quote::quote! { None },
@@ -51,39 +52,43 @@ where
                         }
                     })
                     .collect();
-                permissions_statements.push(quote::quote! {
-                    {
-                        let mut handler_permissions =Vec::new();
+                if !append_statements.is_empty() {
+                    permissions_statements.push(quote::quote! {
+                        {
+                            let mut handler_permissions =Vec::new();
 
-                        #(#append_statements)*
+                            #(#append_statements)*
 
-                        p.insert(#handler, handler_permissions);
-                    }
-                });
+                            permissions.insert(#handler, handler_permissions);
+                        }
+                    });
+                }
             }
         }
 
         let tokens = if !permissions_statements.is_empty() {
             quote::quote! {
-                {
-                    let mut p = HashMap::new();
+                #type_name => {
+                    let mut permissions = HashMap::new();
 
                     #(#permissions_statements)*
 
-                    resources.insert(#type_name.to_string(), ResourceInfo {
+                    let info = ResourceInfo {
                         description: #description,
-                        handler_permissions: p,
-                    });
-                }
+                        handler_permissions: permissions,
+                    };
+                    Some(info)
+                },
             }
         } else {
             quote::quote! {
-                {
-                    resources.insert(#type_name.to_string(), ResourceInfo {
+                #type_name => {
+                    let info = ResourceInfo {
                         description: #description,
                         handler_permissions: HashMap::new(),
-                    });
-                }
+                    };
+                    Some(info)
+                },
             }
         };
 
@@ -107,18 +112,12 @@ where
             handler_permissions: HashMap<Handler, Vec<String>>,
         }
 
-        pub fn resources() -> HashMap<String, ResourceInfo> {
-            let mut resources: HashMap<String, ResourceInfo> = HashMap::new();
-            #(#resource_entry_tokens)*
-            resources
-        }
-
-        fn main() {
-            for (resource_name, resource) in resources() {
-                println!("{resource_name} => {resource:?}");
+        pub fn info_for_resource(resource_type: &str) -> Option<ResourceInfo> {
+            match resource_type {
+                #(#resource_entry_tokens)*
+                other => None,
             }
         }
-
     };
 
     let mut output_file = std::fs::File::create(output_path)?;
