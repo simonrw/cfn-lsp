@@ -1,5 +1,7 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Write, io::Write as _};
 
+use proc_macro2::{Ident, Literal, Punct, Spacing, Span, TokenStream};
+use quote::{ToTokens, TokenStreamExt, format_ident};
 use serde::Deserialize;
 
 #[derive(thiserror::Error, Debug)]
@@ -22,18 +24,146 @@ pub enum SchemaError {
 
 pub type Result<T> = std::result::Result<T, SchemaError>;
 
+pub fn render_to<P>(output_path: P) -> Result<()>
+where
+    P: AsRef<std::path::Path>,
+{
+    let input_path = concat!(env!("CARGO_MANIFEST_DIR"), "/CloudformationSchema.zip");
+    let f = std::fs::File::open(input_path)?;
+    let resources = extract_from_bundle(f)?;
+
+    let mut resource_entry_tokens = Vec::new();
+    for resource in resources {
+        let type_name = resource.type_name;
+        let description = match resource.description {
+            Some(d) => quote::quote! { Some(#d.to_string()) },
+            None => quote::quote! { None },
+        };
+
+        let mut permissions_statements = Vec::new();
+        for (handler, permissions) in resource.handler_permissions {
+            if let Some(permissions) = permissions {
+                let append_statements: Vec<_> = permissions
+                    .iter()
+                    .map(|s| {
+                        quote::quote! {
+                            handler_permissions.push(#s.to_string());
+                        }
+                    })
+                    .collect();
+                permissions_statements.push(quote::quote! {
+                    {
+                        let mut handler_permissions =Vec::new();
+
+                        #(#append_statements)*
+
+                        p.insert(#handler, handler_permissions);
+                    }
+                });
+            }
+        }
+
+        let tokens = if !permissions_statements.is_empty() {
+            quote::quote! {
+                {
+                    let mut p = HashMap::new();
+
+                    #(#permissions_statements)*
+
+                    resources.insert(#type_name.to_string(), ResourceInfo {
+                        description: #description,
+                        handler_permissions: p,
+                    });
+                }
+            }
+        } else {
+            quote::quote! {
+                {
+                    resources.insert(#type_name.to_string(), ResourceInfo {
+                        description: #description,
+                        handler_permissions: HashMap::new(),
+                    });
+                }
+            }
+        };
+
+        resource_entry_tokens.push(tokens);
+    }
+
+    let tokens = quote::quote! {
+        use std::collections::HashMap;
+
+        #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+        enum Handler {
+            Create,
+            Read,
+            Update,
+            Delete,
+        }
+
+        #[derive(Debug)]
+        pub struct ResourceInfo {
+            description: Option<String>,
+            handler_permissions: HashMap<Handler, Vec<String>>,
+        }
+
+        pub fn resources() -> HashMap<String, ResourceInfo> {
+            let mut resources: HashMap<String, ResourceInfo> = HashMap::new();
+            #(#resource_entry_tokens)*
+            resources
+        }
+
+        fn main() {
+            for (resource_name, resource) in resources() {
+                println!("{resource_name} => {resource:?}");
+            }
+        }
+
+    };
+
+    let mut output_file = std::fs::File::create(output_path)?;
+    output_file.write_all(format!("{tokens}").as_bytes())?;
+    Ok(())
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-pub enum Handler {
+enum Handler {
     Create,
     Read,
     Update,
     Delete,
 }
+
+impl std::fmt::Display for Handler {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Handler::Create => f.write_str("Create"),
+            Handler::Read => f.write_str("Read"),
+            Handler::Update => f.write_str("Update"),
+            Handler::Delete => f.write_str("Delete"),
+        }
+    }
+}
+
+impl quote::ToTokens for Handler {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.append(Ident::new("Handler", Span::call_site()));
+        tokens.append(Punct::new(':', Spacing::Joint));
+        tokens.append(Punct::new(':', Spacing::Alone));
+        match *self {
+            Handler::Create => tokens.append(Ident::new("Create", Span::call_site())),
+            Handler::Read => tokens.append(Ident::new("Read", Span::call_site())),
+            Handler::Update => tokens.append(Ident::new("Update", Span::call_site())),
+            Handler::Delete => tokens.append(Ident::new("Delete", Span::call_site())),
+        }
+    }
+}
+
 #[derive(Debug)]
-pub struct ResourceInfo {
-    pub type_name: String,
-    pub description: Option<String>,
-    pub handler_permissions: HashMap<Handler, Option<Vec<String>>>,
+struct ResourceInfo {
+    type_name: String,
+    description: Option<String>,
+    handler_permissions: HashMap<Handler, Option<Vec<String>>>,
 }
 
 #[derive(Deserialize)]
@@ -83,7 +213,7 @@ where
     Ok(resource_info)
 }
 
-pub fn extract_from_bundle<R>(reader: R) -> Result<Vec<ResourceInfo>>
+fn extract_from_bundle<R>(reader: R) -> Result<Vec<ResourceInfo>>
 where
     R: std::io::Read + std::io::Seek,
 {
