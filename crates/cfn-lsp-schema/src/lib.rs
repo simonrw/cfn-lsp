@@ -1,7 +1,7 @@
-use std::{collections::HashMap, fmt::Write, io::Write as _};
+use std::{collections::HashMap, io::Write as _};
 
-use proc_macro2::{Ident, Literal, Punct, Spacing, Span, TokenStream};
-use quote::{ToTokens, TokenStreamExt, format_ident};
+use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
+use quote::TokenStreamExt;
 use serde::Deserialize;
 
 #[derive(thiserror::Error, Debug)]
@@ -99,7 +99,7 @@ where
         use std::collections::HashMap;
 
         #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-        enum Handler {
+        pub enum Handler {
             Create,
             Read,
             Update,
@@ -108,8 +108,8 @@ where
 
         #[derive(Debug)]
         pub struct ResourceInfo {
-            description: Option<String>,
-            handler_permissions: HashMap<Handler, Vec<String>>,
+            pub description: Option<String>,
+            pub handler_permissions: HashMap<Handler, Vec<String>>,
         }
 
         pub fn info_for_resource(resource_type: &str) -> Option<ResourceInfo> {
@@ -126,7 +126,7 @@ where
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-enum Handler {
+pub enum Handler {
     Create,
     Read,
     Update,
@@ -159,10 +159,10 @@ impl quote::ToTokens for Handler {
 }
 
 #[derive(Debug)]
-struct ResourceInfo {
-    type_name: String,
-    description: Option<String>,
-    handler_permissions: HashMap<Handler, Option<Vec<String>>>,
+pub struct ResourceInfo {
+    pub type_name: String,
+    pub description: Option<String>,
+    pub handler_permissions: HashMap<Handler, Option<Vec<String>>>,
 }
 
 #[derive(Deserialize)]
@@ -209,6 +209,21 @@ where
             }
         }
     }
+    Ok(resource_info)
+}
+
+pub fn extract_resource_from_bundle(resource_type: &str) -> Result<ResourceInfo> {
+    let input_path = concat!(env!("CARGO_MANIFEST_DIR"), "/CloudformationSchema.zip");
+    let f = std::fs::File::open(input_path)?;
+    let mut z = zip::ZipArchive::new(f).map_err(SchemaError::from)?;
+
+    let name = resource_type.to_ascii_lowercase().replace("::", "-") + ".json";
+    let zf = z.by_name(&name).unwrap();
+    let resource_info =
+        extract_from_file(&name, zf).map_err(|source| SchemaError::ExtractingResourceInfo {
+            filename: name,
+            source: Box::new(source),
+        })?;
     Ok(resource_info)
 }
 
