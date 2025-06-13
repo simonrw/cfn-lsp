@@ -24,6 +24,7 @@ pub enum SchemaError {
 
 pub type Result<T> = std::result::Result<T, SchemaError>;
 
+
 pub fn render_to<P>(output_path: P) -> Result<()>
 where
     P: AsRef<std::path::Path>,
