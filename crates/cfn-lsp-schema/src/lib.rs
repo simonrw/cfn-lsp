@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::Write as _};
+use std::{collections::HashMap, io::Write as _, sync::OnceLock};
 
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::TokenStreamExt;
@@ -295,8 +295,35 @@ where
     Ok(resources)
 }
 
-pub fn get_resource_types() -> impl Iterator<Item = String> {
-    std::iter::once("AWS::SNS::Topic".to_string())
+pub struct Resource {
+    pub type_name: String,
+    pub description: Option<String>,
+}
+
+static RESOURCE_TYPES: OnceLock<Vec<Resource>> = OnceLock::new();
+
+pub fn get_resource_types() -> &'static [Resource] {
+    RESOURCE_TYPES.get_or_init(|| {
+        let mut resources = Vec::new();
+
+        let input_path = concat!(env!("CARGO_MANIFEST_DIR"), "/CloudformationSchema.zip");
+        let f = std::fs::File::open(input_path).expect("Could not open schema zip file");
+        let mut archive = zip::ZipArchive::new(f).expect("Could not read zip archive");
+        for i in 0..archive.len() {
+            let mut file = archive.by_index(i).expect("Could not read file from zip");
+            let filename = file.name().to_string();
+            if filename.ends_with(".json") {
+                let schema: Schema =
+                    serde_json::from_reader(&mut file).expect("Could not parse JSON schema");
+                resources.push(Resource {
+                    type_name: schema.type_name,
+                    description: schema.description,
+                });
+            }
+        }
+
+        resources
+    })
 }
 
 #[cfg(test)]

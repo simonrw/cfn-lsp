@@ -6,9 +6,9 @@ use tower_lsp::{
     Client, LanguageServer, LspService, Server,
     lsp_types::{
         CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
-        DidOpenTextDocumentParams, DidSaveTextDocumentParams, Hover, HoverContents, HoverParams,
-        HoverProviderCapability, InitializeParams, InitializeResult, MarkupContent, MarkupKind,
-        Position, ServerCapabilities, TextDocumentItem, TextDocumentSyncCapability,
+        DidOpenTextDocumentParams, DidSaveTextDocumentParams, Documentation, Hover, HoverContents,
+        HoverParams, HoverProviderCapability, InitializeParams, InitializeResult, MarkupContent,
+        MarkupKind, Position, ServerCapabilities, TextDocumentItem, TextDocumentSyncCapability,
         TextDocumentSyncKind, Url,
     },
 };
@@ -69,15 +69,26 @@ impl LanguageServer for ServerState {
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        tracing::debug!(?params, "document opened");
+        tracing::trace!(?params, "document opened");
         let uri = params.text_document.uri.clone();
         self.set_current_document_from_url(uri).await;
     }
 
-    async fn did_change(&self, _: DidChangeTextDocumentParams) {}
+    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        tracing::trace!(?params, "document changed");
+        let mut inner = self.inner.lock().await;
+        let Some(current_document) = inner.current_document.as_mut() else {
+            tracing::warn!("no current document");
+            return;
+        };
+        current_document.text = params
+            .content_changes
+            .first()
+            .map_or(current_document.text.clone(), |change| change.text.clone());
+    }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
-        tracing::debug!(?params, "document saved");
+        tracing::trace!(?params, "document saved");
         let url = params.text_document.uri.clone();
         self.set_current_document_from_url(url).await;
     }
@@ -101,6 +112,7 @@ impl LanguageServer for ServerState {
         };
         let text = current_document.text.as_str();
         let template_language = detect_template_language(&file_path, text);
+        tracing::debug!(?template_language, "detected template language");
         let pos = params.text_document_position.position;
         let line = current_document
             .text
@@ -110,15 +122,12 @@ impl LanguageServer for ServerState {
 
         let should_complete = match template_language {
             TemplateLanguage::Yaml => {
-                let prefix = "Type: ";
-                let start = pos.character.saturating_sub(prefix.len() as _) as usize;
-                &line[start..pos.character as usize] == prefix
+                let prefix = "Type:";
+                line.trim_start().starts_with(prefix)
             }
             TemplateLanguage::Json => {
-                // TODO: multiple spaces
-                let prefix = "\"Type\": \"";
-                let start = pos.character.saturating_sub(prefix.len() as _) as usize;
-                &line[start..pos.character as usize] == prefix
+                let prefix = "\"Type\":";
+                line.trim_start().starts_with(prefix)
             }
         };
 
@@ -128,14 +137,12 @@ impl LanguageServer for ServerState {
         }
 
         let completion_items: Vec<_> = cfn_lsp_schema::get_resource_types()
-            .map(|_resource| tower_lsp::lsp_types::CompletionItem {
-                // label: resource.type_name.clone(),
-                // kind: Some(tower_lsp::lsp_types::CompletionItemKind::CLASS),
+            .iter()
+            .map(|resource| tower_lsp::lsp_types::CompletionItem {
+                label: resource.type_name.clone(),
+                kind: Some(tower_lsp::lsp_types::CompletionItemKind::CLASS),
                 // detail: Some(resource.type_name),
-                // documentation: resource.description.map(|desc| MarkupContent {
-                //     kind: MarkupKind::Markdown,
-                //     value: desc,
-                // }),
+                documentation: resource.description.clone().map(Documentation::String),
                 ..Default::default()
             })
             .collect();
@@ -186,6 +193,7 @@ impl LanguageServer for ServerState {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum TemplateLanguage {
     Yaml,
     Json,
