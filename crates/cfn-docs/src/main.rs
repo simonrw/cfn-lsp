@@ -72,7 +72,6 @@ where
         }
         writeln!(writer, "|:-:|-")?;
     }
-    writeln!(writer, "|:-:|-")?;
     Ok(())
 }
 
