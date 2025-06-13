@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
 use cfn_lsp_schema::Handler;
@@ -106,7 +106,16 @@ fn render_to_markdown(
     writeln!(&mut s)?;
 
     writeln!(&mut s, "## Properties not available through intrinsics")?;
-    for prop in &resource_info.write_only_properties {
+    let mut unique_properties = resource_info
+        .write_only_properties
+        .iter()
+        .map(|p| p.split('/').next().unwrap_or(p))
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    unique_properties.sort();
+    for prop in unique_properties {
+        let prop = prop.split('/').next().unwrap_or(prop);
         writeln!(&mut s, "* {prop}")?;
     }
     writeln!(&mut s)?;
