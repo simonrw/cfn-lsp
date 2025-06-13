@@ -295,6 +295,10 @@ where
     Ok(resources)
 }
 
+pub fn get_resource_types() -> impl Iterator<Item = String> {
+    std::iter::once("AWS::SNS::Topic".to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
