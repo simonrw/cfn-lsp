@@ -4,7 +4,7 @@
 -- 	root_dir = vim.fn.getcwd(),
 -- })
 vim.lsp.config["cfn-lsp"] = {
-    cmd = { "/Users/simon/.cargo-target/debug/cfn-lsp" },
+    cmd = { "/Users/simon/.cargo-target/release/cfn-lsp" },
     filetypes = { "yaml", "json" },
     -- cmd_env = { RUST_LOG = "debug" },
 }
