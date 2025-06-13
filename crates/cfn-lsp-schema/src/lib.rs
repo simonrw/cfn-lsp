@@ -24,7 +24,6 @@ pub enum SchemaError {
 
 pub type Result<T> = std::result::Result<T, SchemaError>;
 
-
 pub fn render_to<P>(output_path: P) -> Result<()>
 where
     P: AsRef<std::path::Path>,
@@ -218,8 +217,12 @@ pub fn extract_resource_from_bundle(resource_type: &str) -> Result<ResourceInfo>
     let f = std::fs::File::open(input_path)?;
     let mut z = zip::ZipArchive::new(f).map_err(SchemaError::from)?;
 
-    let name = resource_type.to_ascii_lowercase().replace("::", "-") + ".json";
-    let zf = z.by_name(&name).unwrap();
+    let name = format!(
+        "{}.json",
+        resource_type.to_ascii_lowercase().replace("::", "-")
+    );
+    tracing::debug!(%name, %resource_type, transformed_name = resource_type.to_ascii_lowercase().replace("::", "-"), "looking for resource in zip archive");
+    let zf = z.by_name(&name).map_err(SchemaError::ZipError)?;
     let resource_info =
         extract_from_file(&name, zf).map_err(|source| SchemaError::ExtractingResourceInfo {
             filename: name,
