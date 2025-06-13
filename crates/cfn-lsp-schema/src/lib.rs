@@ -163,6 +163,10 @@ pub struct ResourceInfo {
     pub type_name: String,
     pub description: Option<String>,
     pub handler_permissions: HashMap<Handler, Option<Vec<String>>>,
+    pub create_only_properties: Vec<String>,
+    pub primary_identifier: String,
+    pub read_only_properties: Vec<String>,
+    pub write_only_properties: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -171,6 +175,18 @@ struct Schema {
     type_name: String,
     description: Option<String>,
     handlers: Option<HashMap<String, HashMap<String, serde_json::Value>>>,
+    #[serde(rename = "createOnlyProperties")]
+    create_only_properties: Option<Vec<String>>,
+    #[serde(rename = "primaryIdentifier")]
+    primary_identifier: Option<Vec<String>>,
+    #[serde(rename = "readOnlyProperties")]
+    read_only_properties: Option<Vec<String>>,
+    #[serde(rename = "writeOnlyProperties")]
+    write_only_properties: Option<Vec<String>>,
+}
+
+fn strip_properties_prefix(s: String) -> String {
+    s.replace("/properties/", "")
 }
 
 fn extract_from_file<R>(filename: &str, reader: R) -> Result<ResourceInfo>
@@ -187,6 +203,31 @@ where
         type_name: schema.type_name,
         description: schema.description,
         handler_permissions: HashMap::new(),
+        read_only_properties: schema
+            .read_only_properties
+            .unwrap_or_default()
+            .into_iter()
+            .map(strip_properties_prefix)
+            .collect(),
+        write_only_properties: schema
+            .write_only_properties
+            .unwrap_or_default()
+            .into_iter()
+            .map(strip_properties_prefix)
+            .collect(),
+        create_only_properties: schema
+            .create_only_properties
+            .unwrap_or_default()
+            .into_iter()
+            .map(strip_properties_prefix)
+            .collect(),
+        primary_identifier: schema
+            .primary_identifier
+            .unwrap_or_default()
+            .into_iter()
+            .map(strip_properties_prefix)
+            .collect::<Vec<_>>()
+            .join("|"),
     };
     if let Some(handlers) = schema.handlers {
         for (handler, details) in handlers {
