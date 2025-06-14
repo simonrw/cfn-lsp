@@ -5,7 +5,8 @@ use tokio::sync::Mutex;
 use tower_lsp::{
     Client, LanguageServer, LspService, Server,
     lsp_types::{
-        CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
+        CodeActionOrCommand, CodeActionParams, CodeActionResponse, CompletionOptions,
+        CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
         DidOpenTextDocumentParams, DidSaveTextDocumentParams, Documentation, Hover, HoverContents,
         HoverParams, HoverProviderCapability, InitializeParams, InitializeResult, MarkupContent,
         MarkupKind, Position, ServerCapabilities, TextDocumentItem, TextDocumentSyncCapability,
@@ -42,6 +43,10 @@ impl ServerState {
             text: contents,
         });
     }
+
+    fn cursor_over_resource(&self) -> bool {
+        false
+    }
 }
 
 struct ServerStateInner {
@@ -62,6 +67,9 @@ impl LanguageServer for ServerState {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
                     TextDocumentSyncKind::FULL,
                 )),
+                code_action_provider: Some(
+                    tower_lsp::lsp_types::CodeActionProviderCapability::Simple(true),
+                ),
                 ..Default::default()
             },
             ..Default::default()
@@ -148,6 +156,31 @@ impl LanguageServer for ServerState {
             .collect();
 
         Ok(Some(CompletionResponse::Array(completion_items)))
+    }
+
+    async fn code_action(
+        &self,
+        params: CodeActionParams,
+    ) -> tower_lsp::jsonrpc::Result<Option<CodeActionResponse>> {
+        tracing::debug!(?params, "got code action request");
+
+        if !self.cursor_over_resource() {
+            return Ok(None);
+        }
+
+        Ok(Some(vec![CodeActionOrCommand::CodeAction(
+            tower_lsp::lsp_types::CodeAction {
+                title: "Fill required resource properties".to_string(),
+                kind: Some(tower_lsp::lsp_types::CodeActionKind::QUICKFIX),
+                // edit: None,
+                // diagnostics: None,
+                // is_preferred: Some(true),
+                // disabled: None,
+                // data: None,
+                // command: None,
+                ..Default::default()
+            },
+        )]))
     }
 
     async fn hover(&self, params: HoverParams) -> tower_lsp::jsonrpc::Result<Option<Hover>> {
