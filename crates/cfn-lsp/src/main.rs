@@ -202,8 +202,16 @@ impl LanguageServer for ServerState {
         Ok(Some(CompletionResponse::Array(completion_items)))
     }
 
+    async fn goto_definition(
+        &self,
+        params: GotoDefinitionParams,
+    ) -> tower_lsp::jsonrpc::Result<Option<GotoDefinitionResponse>> {
+        tracing::debug!(?params, "got goto definition request");
+        Ok(None)
+    }
+
     async fn hover(&self, params: HoverParams) -> tower_lsp::jsonrpc::Result<Option<Hover>> {
-        tracing::debug!("got hover request");
+        tracing::debug!(?params, "got hover request");
         let pos = params.text_document_position_params.position;
         let inner = self.inner.lock().await;
         let Some(current_document) = inner.current_document.as_ref() else {
