@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc};
+use std::{iter::DoubleEndedIterator, path::Path, sync::Arc};
 
 use anyhow::Context;
 use tokio::sync::Mutex;
@@ -6,10 +6,11 @@ use tower_lsp::{
     Client, LanguageServer, LspService, Server,
     lsp_types::{
         CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
-        DidOpenTextDocumentParams, DidSaveTextDocumentParams, Documentation, Hover, HoverContents,
-        HoverParams, HoverProviderCapability, InitializeParams, InitializeResult, MarkupContent,
-        MarkupKind, Position, ServerCapabilities, TextDocumentItem, TextDocumentSyncCapability,
-        TextDocumentSyncKind, Url,
+        DidOpenTextDocumentParams, DidSaveTextDocumentParams, Documentation, GotoDefinitionParams,
+        GotoDefinitionResponse, Hover, HoverContents, HoverParams, HoverProviderCapability,
+        InitializeParams, InitializeResult, MarkupContent, MarkupKind, Position,
+        ServerCapabilities, TextDocumentItem, TextDocumentSyncCapability, TextDocumentSyncKind,
+        Url,
     },
 };
 use tracing::Level;
@@ -42,6 +43,57 @@ impl ServerState {
             text: contents,
         });
     }
+
+    async fn word_under_cursor(&self, cursor: Position) -> anyhow::Result<Option<String>> {
+        let inner = self.inner.lock().await;
+        let Some(doc) = &inner.current_document else {
+            return Ok(None);
+        };
+
+        word_under_cursor(&doc.text, cursor)
+    }
+}
+
+// free floating function to make testing easier
+fn word_under_cursor(content: &str, cursor: Position) -> anyhow::Result<Option<String>> {
+    let line_number = usize::try_from(cursor.line).unwrap();
+    let character_number = usize::try_from(cursor.character).unwrap();
+
+    let mut lines = content.split('\n');
+    let current_line = lines
+        .nth(line_number)
+        .ok_or(anyhow::anyhow!("Line out of bounds"))?;
+
+    // check if the character at the current position is a space or not. If so return None
+    let current_char = current_line
+        .chars()
+        .nth(character_number)
+        .ok_or(anyhow::anyhow!("character out of range"))?;
+    if current_char.is_whitespace() {
+        return Ok(None);
+    }
+
+    // find index of end of word
+    let chars: Vec<_> = current_line.chars().collect();
+
+    let mut start_index = character_number;
+    while start_index > 0 {
+        if chars[start_index].is_whitespace() {
+            start_index += 1;
+            break;
+        }
+        start_index -= 1;
+    }
+
+    let mut end_index = character_number;
+    while end_index < current_line.len() {
+        if chars[end_index].is_whitespace() {
+            break;
+        }
+        end_index += 1;
+    }
+
+    Ok(Some(content[start_index..end_index].to_string()))
 }
 
 struct ServerStateInner {
@@ -328,5 +380,32 @@ mod tests {
             extract_resource_type(line, pos),
             Some("AWS::SNS::Topic".to_string())
         );
+    }
+
+    // tests for word under cursor
+    #[test]
+    fn single_word_under_cursor() {
+        let content = "This is a test";
+        //             0123456789
+
+        for (c, expected) in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].into_iter().zip([
+            Some("This".to_string()),
+            Some("This".to_string()),
+            Some("This".to_string()),
+            Some("This".to_string()),
+            None,
+            Some("is".to_string()),
+            Some("is".to_string()),
+            None,
+            Some("a".to_string()),
+            None,
+        ]) {
+            let position = Position {
+                line: 0,
+                character: c,
+            };
+
+            assert_eq!(word_under_cursor(content, position).unwrap(), expected);
+        }
     }
 }
