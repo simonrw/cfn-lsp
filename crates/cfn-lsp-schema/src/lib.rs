@@ -253,11 +253,28 @@ where
     Ok(resource_info)
 }
 
-pub fn extract_resource_from_bundle(resource_type: &str) -> Result<ResourceInfo> {
+#[cfg(not(feature = "bundle"))]
+fn schema_archive() -> Result<zip::ZipArchive<std::fs::File>> {
     let input_path = concat!(env!("CARGO_MANIFEST_DIR"), "/CloudformationSchema.zip");
     let f = std::fs::File::open(input_path)?;
-    let mut z = zip::ZipArchive::new(f).map_err(SchemaError::from)?;
+    let z = zip::ZipArchive::new(f).map_err(SchemaError::from)?;
+    Ok(z)
+}
 
+#[cfg(feature = "bundle")]
+fn schema_archive() -> Result<zip::ZipArchive<std::io::Cursor<&'static [u8]>>> {
+    use std::io::Cursor;
+
+    let contents = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/CloudformationSchema.zip"
+    ));
+    let z = zip::ZipArchive::new(Cursor::new(&contents[..])).map_err(SchemaError::from)?;
+    Ok(z)
+}
+
+pub fn extract_resource_from_bundle(resource_type: &str) -> Result<ResourceInfo> {
+    let mut z = schema_archive()?;
     let name = format!(
         "{}.json",
         resource_type.to_ascii_lowercase().replace("::", "-")
