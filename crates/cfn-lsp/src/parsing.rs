@@ -119,20 +119,221 @@ struct Parameter {
     default: Option<LocatedString>,
 }
 
-#[derive(Default)]
+#[derive(Debug, Clone)]
+enum State {
+    Start,
+    Doc,
+    Root,
+    InResources,
+    InResource,
+    InParameters,
+    InParameter,
+    InOutputs,
+    InOutput,
+    InProperties(Vec<LocatedString>),
+}
+
 struct CloudformationParser {
     template: Template,
+    state_stack: Vec<State>,
+    key_stack: Vec<LocatedString>,
+    map_start_stack: Vec<yaml_rust::scanner::Marker>,
+    is_key: bool,
+    temp_resource: Option<Resource>,
+    temp_parameter: Option<Parameter>,
+    temp_output: Option<Output>,
+    temp_properties_stack: Vec<HashMap<LocatedString, Located<ResourceProperties>>>,
+}
+
+impl Default for CloudformationParser {
+    fn default() -> Self {
+        CloudformationParser {
+            template: Template::default(),
+            state_stack: vec![State::Start],
+            key_stack: Vec::new(),
+            map_start_stack: Vec::new(),
+            is_key: true,
+            temp_resource: None,
+            temp_parameter: None,
+            temp_output: None,
+            temp_properties_stack: Vec::new(),
+        }
+    }
 }
 
 impl CloudformationParser {
     fn get_template(self) -> Template {
         self.template
     }
+
+    fn located_scalar(&self, s: String, mark: &yaml_rust::scanner::Marker) -> LocatedString {
+        let line = mark.line();
+        let col = mark.col();
+        Located::new_at(s.clone(), span!(line, col, line, col + s.len()))
+    }
 }
 
 impl yaml_rust::parser::MarkedEventReceiver for CloudformationParser {
     fn on_event(&mut self, ev: Event, mark: yaml_rust::scanner::Marker) {
-        todo!()
+        let state = self.state_stack.last().unwrap().clone();
+
+        match ev {
+            Event::StreamStart => {}
+            Event::StreamEnd => {}
+            Event::DocumentStart => self.state_stack.push(State::Doc),
+            Event::DocumentEnd => {
+                self.state_stack.pop();
+            }
+            Event::MappingStart(_) => {
+                self.map_start_stack.push(mark);
+                self.is_key = true;
+
+                let next_state = match state {
+                    State::Doc => State::Root,
+                    State::Root => match self.key_stack.last().unwrap().value.as_str() {
+                        "Resources" => State::InResources,
+                        "Parameters" => State::InParameters,
+                        "Outputs" => State::InOutputs,
+                        _ => state,
+                    },
+                    State::InResources => {
+                        self.temp_resource = Some(Resource {
+                            r#type: Located::new_at("".to_string(), span!()),
+                            properties: None,
+                        });
+                        State::InResource
+                    }
+                    State::InParameters => {
+                        self.temp_parameter = Some(Parameter {
+                            r#type: Located::new_at("".to_string(), span!()),
+                            default: None,
+                        });
+                        State::InParameter
+                    }
+                    State::InOutputs => {
+                        self.temp_output = Some(Output {
+                            value: Located::new_at("".to_string(), span!()),
+                        });
+                        State::InOutput
+                    }
+                    State::InResource | State::InParameter | State::InOutput => {
+                        if self.key_stack.last().unwrap().value == "Properties" {
+                            self.temp_properties_stack.push(HashMap::new());
+                            State::InProperties(vec![])
+                        } else {
+                            state
+                        }
+                    }
+                    State::InProperties(mut path) => {
+                        path.push(self.key_stack.last().unwrap().clone());
+                        self.temp_properties_stack.push(HashMap::new());
+                        State::InProperties(path)
+                    }
+                    State::Start => todo!(),
+                };
+                self.state_stack.push(next_state);
+            }
+            Event::MappingEnd => {
+                let start_mark = self.map_start_stack.pop().unwrap();
+                let map_range = span!(start_mark.line(), start_mark.col(), mark.line(), mark.col());
+
+                let old_state = self.state_stack.pop().unwrap();
+                self.is_key = true;
+
+                match old_state {
+                    State::InResource => {
+                        let resource = self.temp_resource.take().unwrap();
+                        let mut resource_name = self.key_stack.pop().unwrap();
+                        resource_name.range = map_range;
+                        let located_resource = Located::new_at(resource, map_range);
+                        self.template
+                            .resources
+                            .insert(resource_name, located_resource);
+                    }
+                    State::InParameter => {
+                        let parameter = self.temp_parameter.take().unwrap();
+                        let mut parameter_name = self.key_stack.pop().unwrap();
+                        parameter_name.range = map_range;
+                        let located_parameter = Located::new_at(parameter, map_range);
+                        self.template
+                            .parameters
+                            .insert(parameter_name, located_parameter);
+                    }
+                    State::InOutput => {
+                        let output = self.temp_output.take().unwrap();
+                        let mut output_name = self.key_stack.pop().unwrap();
+                        output_name.range = map_range;
+                        let located_output = Located::new_at(output, map_range);
+                        self.template.outputs.insert(output_name, located_output);
+                    }
+                    State::InProperties(path) => {
+                        let properties_map = self.temp_properties_stack.pop().unwrap();
+                        let properties = ResourceProperties::Map(properties_map);
+                        let located_properties = Located::new_at(properties, map_range);
+
+                        if path.is_empty() {
+                            if let Some(resource) = self.temp_resource.as_mut() {
+                                resource.properties = Some(located_properties);
+                            }
+                        } else {
+                            let parent_properties = self.temp_properties_stack.last_mut().unwrap();
+                            let mut property_key = self.key_stack.pop().unwrap();
+                            property_key.range = map_range;
+                            parent_properties.insert(property_key, located_properties);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            Event::Scalar(value, ..) => {
+                if self.is_key {
+                    self.key_stack.push(self.located_scalar(value, &mark));
+                } else {
+                    let key = self.key_stack.pop().unwrap();
+                    let located_value = self.located_scalar(value, &mark);
+
+                    match state {
+                        State::Root => {
+                            if key.value == "AWSTemplateFormatVersion" {
+                                self.template.version = Some(located_value);
+                            } else if key.value == "Description" {
+                                self.template.description = Some(located_value);
+                            }
+                        }
+                        State::InResource => {
+                            if key.value == "Type" {
+                                self.temp_resource.as_mut().unwrap().r#type = located_value;
+                            }
+                        }
+                        State::InParameter => {
+                            let param = self.temp_parameter.as_mut().unwrap();
+                            if key.value == "Type" {
+                                param.r#type = located_value;
+                            } else if key.value == "Default" {
+                                param.default = Some(located_value);
+                            }
+                        }
+                        State::InOutput => {
+                            if key.value == "Value" {
+                                self.temp_output.as_mut().unwrap().value = located_value;
+                            }
+                        }
+                        State::InProperties(_) => {
+                            let properties = ResourceProperties::String(located_value.clone());
+                            let located_properties =
+                                Located::new_at(properties, located_value.range);
+                            self.temp_properties_stack
+                                .last_mut()
+                                .unwrap()
+                                .insert(key, located_properties);
+                        }
+                        _ => {}
+                    }
+                }
+                self.is_key = !self.is_key;
+            }
+            _ => {}
+        }
     }
 }
 
@@ -184,29 +385,30 @@ mod tests {
 
     #[test]
     fn parse_basic_template() {
-        let example_contents = r#"\
+        let example_contents = r#"
 Resources:
     MyTopic:
         Type: AWS::SNS::Topic
 "#;
-        let template = parse_cfn_yaml_from_reader(std::io::Cursor::new(example_contents)).unwrap();
+        let template =
+            parse_cfn_yaml_from_reader(std::io::Cursor::new(example_contents.trim())).unwrap();
 
         let my_topic = {
             let topic_type: LocatedString =
-                Located::new_at("AWS::SNS::Topic".to_string(), span!(2, 14, 2, 28));
+                Located::new_at("AWS::SNS::Topic".to_string(), span!(3, 14, 3, 29));
 
             let properties = None;
             let resource = Resource {
                 r#type: topic_type,
-                properties: properties,
+                properties,
             };
-            Located::new_at(resource, span!(1, 4, 2, 28))
+            Located::new_at(resource, span!(2, 4, 3, 29))
         };
 
         let resources = {
             let mut resources = HashMap::new();
             resources.insert(
-                Located::new_at("MyTopic".to_string(), span!(1, 4, 2, 28)),
+                Located::new_at("MyTopic".to_string(), span!(2, 4, 3, 29)),
                 my_topic,
             );
             resources
