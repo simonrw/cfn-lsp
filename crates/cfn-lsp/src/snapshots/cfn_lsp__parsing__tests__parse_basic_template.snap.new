@@ -1,0 +1,12 @@
+---
+source: crates/cfn-lsp/src/parsing.rs
+assertion_line: 280
+expression: template
+---
+Template {
+    version: None,
+    description: None,
+    resources: {},
+    outputs: {},
+    parameters: {},
+}

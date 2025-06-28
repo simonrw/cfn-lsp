@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Debug, hash::Hash, io::Read, path::Path};
 
 use anyhow::Context;
-use yaml_rust::Event;
+use yaml_rust::{Event, parser::MarkedEventReceiver, scanner::Marker};
 
 macro_rules! span {
     ($start_line:expr, $start_col:expr, $end_line:expr, $end_col:expr) => {
@@ -119,8 +119,9 @@ struct Parameter {
     default: Option<LocatedString>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 enum State {
+    #[default]
     Start,
     Doc,
     Root,
@@ -133,201 +134,90 @@ enum State {
     InProperties(Vec<LocatedString>),
 }
 
-struct CloudformationParser {
-    template: Template,
-    state_stack: Vec<State>,
-    key_stack: Vec<LocatedString>,
-    map_start_stack: Vec<yaml_rust::scanner::Marker>,
-    is_key: bool,
-    temp_resource: Option<Resource>,
-    temp_parameter: Option<Parameter>,
-    temp_output: Option<Output>,
-    temp_properties_stack: Vec<HashMap<LocatedString, Located<ResourceProperties>>>,
+struct Node {
+    r#type: NodeType,
+    range: Range,
 }
 
-impl Default for CloudformationParser {
-    fn default() -> Self {
-        CloudformationParser {
-            template: Template::default(),
-            state_stack: vec![State::Start],
-            key_stack: Vec::new(),
-            map_start_stack: Vec::new(),
-            is_key: true,
-            temp_resource: None,
-            temp_parameter: None,
-            temp_output: None,
-            temp_properties_stack: Vec::new(),
-        }
-    }
+enum NodeType {
+    Map(HashMap<String, Node>),
+    Array(Vec<Node>),
+    String(String),
+}
+
+#[derive(Default)]
+struct CloudformationParser {
+    // template: Template,
+    // state_stack: Vec<State>,
+    // key_stack: Vec<LocatedString>,
+    // map_start_stack: Vec<Marker>,
+    // is_key: bool,
+    // temp_resource: Option<Resource>,
+    // temp_parameter: Option<Parameter>,
+    // temp_output: Option<Output>,
+    // temp_properties_stack: Vec<HashMap<LocatedString, Located<ResourceProperties>>>,
+    state: State,
+    node_stack: Vec<Node>,
+    template: Template,
 }
 
 impl CloudformationParser {
     fn get_template(self) -> Template {
         self.template
     }
-
-    fn located_scalar(&self, s: String, mark: &yaml_rust::scanner::Marker) -> LocatedString {
-        let line = mark.line();
-        let col = mark.col();
-        Located::new_at(s.clone(), span!(line, col, line, col + s.len()))
-    }
 }
+//     fn located_scalar(&self, s: String, mark: &Marker) -> LocatedString {
+//         let line = mark.line();
+//         let col = mark.col();
+//         Located::new_at(s.clone(), span!(line, col, line, col + s.len()))
+//     }
+// }
 
-impl yaml_rust::parser::MarkedEventReceiver for CloudformationParser {
-    fn on_event(&mut self, ev: Event, mark: yaml_rust::scanner::Marker) {
-        let state = self.state_stack.last().unwrap().clone();
+/*
+StreamStart | Marker { index: 0, line: 1, col: 0 }
+DocumentStart | Marker { index: 9, line: 1, col: 9 }
+MappingStart(0) | Marker { index: 9, line: 1, col: 9 }
+Scalar("Resources", Plain, 0, None) | Marker { index: 0, line: 1, col: 0 }
+MappingStart(0) | Marker { index: 20, line: 2, col: 9 }
+Scalar("MyTopic", Plain, 0, None) | Marker { index: 13, line: 2, col: 2 }
+MappingStart(0) | Marker { index: 30, line: 3, col: 8 }
+Scalar("Type", Plain, 0, None) | Marker { index: 26, line: 3, col: 4 }
+Scalar("AWS::SNS::Topic", Plain, 0, None) | Marker { index: 32, line: 3, col: 10 }
+MappingEnd | Marker { index: 47, line: 4, col: 0 }
+MappingEnd | Marker { index: 47, line: 4, col: 0 }
+MappingEnd | Marker { index: 47, line: 4, col: 0 }
+DocumentEnd | Marker { index: 47, line: 4, col: 0 }
+StreamEnd | Marker { index: 47, line: 4, col: 0 }
+*/
 
+impl MarkedEventReceiver for CloudformationParser {
+    fn on_event(&mut self, ev: Event, mark: Marker) {
+        let line = mark.line();
+        let column = mark.line();
         match ev {
-            Event::StreamStart | Event::StreamEnd => {}
-            Event::DocumentStart => self.state_stack.push(State::Doc),
-            Event::DocumentEnd => {
-                self.state_stack.pop();
-            }
+            Event::StreamStart => {},
+            Event::StreamEnd => {},
+            Event::DocumentStart => self.state = State::Doc,
+            Event::DocumentEnd => todo!(),
             Event::MappingStart(_) => {
-                self.map_start_stack.push(mark);
-                self.is_key = true;
-
-                let next_state = match state {
-                    State::Doc => State::Root,
-                    State::Root => match self.key_stack.last().unwrap().value.as_str() {
-                        "Resources" => State::InResources,
-                        "Parameters" => State::InParameters,
-                        "Outputs" => State::InOutputs,
-                        _ => state,
+                self.node_stack.push(Node {
+                    r#type: NodeType::Map(HashMap::new()),
+                    range: Range {
+                        start: Position { line, column },
+                        end: Position { line: 0, column: 0 },
                     },
-                    State::InResources => {
-                        self.temp_resource = Some(Resource {
-                            r#type: Located::new_at("".to_string(), span!()),
-                            properties: None,
-                        });
-                        State::InResource
-                    }
-                    State::InParameters => {
-                        self.temp_parameter = Some(Parameter {
-                            r#type: Located::new_at("".to_string(), span!()),
-                            default: None,
-                        });
-                        State::InParameter
-                    }
-                    State::InOutputs => {
-                        self.temp_output = Some(Output {
-                            value: Located::new_at("".to_string(), span!()),
-                        });
-                        State::InOutput
-                    }
-                    State::InResource | State::InParameter | State::InOutput => {
-                        if self.key_stack.last().unwrap().value == "Properties" {
-                            self.temp_properties_stack.push(HashMap::new());
-                            State::InProperties(vec![])
-                        } else {
-                            state
-                        }
-                    }
-                    State::InProperties(mut path) => {
-                        path.push(self.key_stack.last().unwrap().clone());
-                        self.temp_properties_stack.push(HashMap::new());
-                        State::InProperties(path)
-                    }
-                    State::Start => todo!(),
-                };
-                self.state_stack.push(next_state);
+                });
             }
             Event::MappingEnd => {
-                let start_mark = self.map_start_stack.pop().unwrap();
-                let map_range = span!(start_mark.line(), start_mark.col(), mark.line(), mark.col());
+                todo!()
+                // loop {
+                //     let last_node = self.node_stack.pop();
 
-                let old_state = self.state_stack.pop().unwrap();
-                self.is_key = true;
-
-                match old_state {
-                    State::InResource => {
-                        let resource = self.temp_resource.take().unwrap();
-                        let mut resource_name = self.key_stack.pop().unwrap();
-                        resource_name.range = map_range;
-                        let located_resource = Located::new_at(resource, map_range);
-                        self.template
-                            .resources
-                            .insert(resource_name, located_resource);
-                    }
-                    State::InParameter => {
-                        let parameter = self.temp_parameter.take().unwrap();
-                        let mut parameter_name = self.key_stack.pop().unwrap();
-                        parameter_name.range = map_range;
-                        let located_parameter = Located::new_at(parameter, map_range);
-                        todo!()
-                    }
-                    State::InOutput => {
-                        let output = self.temp_output.take().unwrap();
-                        let mut output_name = self.key_stack.pop().unwrap();
-                        output_name.range = map_range;
-                        let located_output = Located::new_at(output, map_range);
-                        self.template.outputs.insert(output_name, located_output);
-                    }
-                    State::InProperties(path) => {
-                        let properties_map = self.temp_properties_stack.pop().unwrap();
-                        let properties = ResourceProperties::Map(properties_map);
-                        let located_properties = Located::new_at(properties, map_range);
-
-                        if path.is_empty() {
-                            if let Some(resource) = self.temp_resource.as_mut() {
-                                resource.properties = Some(located_properties);
-                            }
-                        } else {
-                            let parent_properties = self.temp_properties_stack.last_mut().unwrap();
-                            let mut property_key = self.key_stack.pop().unwrap();
-                            property_key.range = map_range;
-                            parent_properties.insert(property_key, located_properties);
-                        }
-                    }
-                    _ => {}
-                }
+                // }
             }
-            Event::Scalar(value, ..) => {
-                if self.is_key {
-                    self.key_stack.push(self.located_scalar(value, &mark));
-                } else {
-                    let key = self.key_stack.pop().unwrap();
-                    let located_value = self.located_scalar(value, &mark);
-
-                    match state {
-                        State::Root => {
-                            if key.value == "AWSTemplateFormatVersion" {
-                                self.template.version = Some(located_value);
-                            } else if key.value == "Description" {
-                                self.template.description = Some(located_value);
-                            }
-                        }
-                        State::InResource => {
-                            if key.value == "Type" {
-                                self.temp_resource.as_mut().unwrap().r#type = located_value;
-                            }
-                        }
-                        State::InParameter => {
-                            let param = self.temp_parameter.as_mut().unwrap();
-                            if key.value == "Type" {
-                                param.r#type = located_value;
-                            } else if key.value == "Default" {
-                                param.default = Some(located_value);
-                            }
-                        }
-                        State::InOutput => {
-                            if key.value == "Value" {
-                                self.temp_output.as_mut().unwrap().value = located_value;
-                            }
-                        }
-                        State::InProperties(_) => {
-                            let properties = ResourceProperties::String(located_value.clone());
-                            let located_properties =
-                                Located::new_at(properties, located_value.range);
-                            self.temp_properties_stack
-                                .last_mut()
-                                .unwrap()
-                                .insert(key, located_properties);
-                        }
-                        _ => {}
-                    }
-                }
-                self.is_key = !self.is_key;
+            Event::Scalar(value, ..) => todo!(),
+            Event::SequenceStart(..) | Event::SequenceEnd => {
+                todo!()
             }
             _ => {}
         }
@@ -382,10 +272,7 @@ mod tests {
 
     #[test]
     fn parse_basic_template() {
-        let example_contents = "Resources:
-    MyTopic:
-        Type: AWS::SNS::Topic
-";
+        let example_contents = include_str!("../testdata/basic-template.yml");
         let template =
             parse_cfn_yaml_from_reader(std::io::Cursor::new(example_contents.trim())).unwrap();
 
