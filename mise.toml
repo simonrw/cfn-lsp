@@ -1,2 +1,2 @@
 [tools]
-"cargo:cargo-insta" = "latest"
+"ubi:mitsuhiko/insta" = { version = "latest", exe = "cargo-insta" }
