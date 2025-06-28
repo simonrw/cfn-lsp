@@ -178,8 +178,7 @@ impl yaml_rust::parser::MarkedEventReceiver for CloudformationParser {
         let state = self.state_stack.last().unwrap().clone();
 
         match ev {
-            Event::StreamStart => {}
-            Event::StreamEnd => {}
+            Event::StreamStart | Event::StreamEnd => {}
             Event::DocumentStart => self.state_stack.push(State::Doc),
             Event::DocumentEnd => {
                 self.state_stack.pop();
@@ -255,9 +254,7 @@ impl yaml_rust::parser::MarkedEventReceiver for CloudformationParser {
                         let mut parameter_name = self.key_stack.pop().unwrap();
                         parameter_name.range = map_range;
                         let located_parameter = Located::new_at(parameter, map_range);
-                        self.template
-                            .parameters
-                            .insert(parameter_name, located_parameter);
+                        todo!()
                     }
                     State::InOutput => {
                         let output = self.temp_output.take().unwrap();
@@ -385,39 +382,14 @@ mod tests {
 
     #[test]
     fn parse_basic_template() {
-        let example_contents = r#"
-Resources:
+        let example_contents = "Resources:
     MyTopic:
         Type: AWS::SNS::Topic
-"#;
+";
         let template =
             parse_cfn_yaml_from_reader(std::io::Cursor::new(example_contents.trim())).unwrap();
 
-        let my_topic = {
-            let topic_type: LocatedString =
-                Located::new_at("AWS::SNS::Topic".to_string(), span!(3, 14, 3, 29));
-
-            let properties = None;
-            let resource = Resource {
-                r#type: topic_type,
-                properties,
-            };
-            Located::new_at(resource, span!(2, 4, 3, 29))
-        };
-
-        let resources = {
-            let mut resources = HashMap::new();
-            resources.insert(
-                Located::new_at("MyTopic".to_string(), span!(2, 4, 3, 29)),
-                my_topic,
-            );
-            resources
-        };
-
-        let expected = Template {
-            resources,
-            ..Default::default()
-        };
-        assert_eq!(template, expected);
+        // TODO: support serialize for yaml snapshots
+        insta::assert_debug_snapshot!(template);
     }
 }

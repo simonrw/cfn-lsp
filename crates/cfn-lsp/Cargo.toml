@@ -25,3 +25,6 @@ syn = { version = "2", default-features = false, features = [
     "parsing",
 ] }
 
+[dev-dependencies]
+insta = { version = "1.43.1", features = ["yaml"] }
+
