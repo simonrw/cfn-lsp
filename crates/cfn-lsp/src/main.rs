@@ -3,15 +3,9 @@ use std::{iter::DoubleEndedIterator, path::Path, sync::Arc};
 use anyhow::Context;
 use tokio::sync::Mutex;
 use tower_lsp::{
-    Client, LanguageServer, LspService, Server,
     lsp_types::{
-        CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
-        DidOpenTextDocumentParams, DidSaveTextDocumentParams, Documentation, GotoDefinitionParams,
-        GotoDefinitionResponse, Hover, HoverContents, HoverParams, HoverProviderCapability,
-        InitializeParams, InitializeResult, MarkupContent, MarkupKind, Position,
-        ServerCapabilities, TextDocumentItem, TextDocumentSyncCapability, TextDocumentSyncKind,
-        Url,
-    },
+        CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams, Documentation, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverContents, HoverParams, HoverProviderCapability, InitializeParams, InitializeResult, MarkupContent, MarkupKind, OneOf, Position, ServerCapabilities, TextDocumentItem, TextDocumentSyncCapability, TextDocumentSyncKind, Url
+    }, Client, LanguageServer, LspService, Server
 };
 use tracing::Level;
 
@@ -114,6 +108,7 @@ impl LanguageServer for ServerState {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
                     TextDocumentSyncKind::FULL,
                 )),
+                definition_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
             ..Default::default()
