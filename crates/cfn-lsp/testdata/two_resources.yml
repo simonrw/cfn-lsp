@@ -1,0 +1,10 @@
+Resources:
+  Topic:
+    Type: AWS::SNS::Topic
+
+  Parameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value: !Ref Topic
+
