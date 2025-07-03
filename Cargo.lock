@@ -241,6 +241,7 @@ dependencies = [
  "insta",
  "prettyplease",
  "quote",
+ "regex",
  "serde",
  "serde_json",
  "spanned_json_parser",

@@ -1,6 +1,6 @@
 ---
 source: crates/cfn-lsp/src/destinations.rs
-assertion_line: 64
+assertion_line: 72
 expression: targets
 ---
 []
