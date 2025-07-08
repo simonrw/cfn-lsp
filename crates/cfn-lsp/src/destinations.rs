@@ -35,7 +35,6 @@ impl<'s> Destinations<'s> {
         let parsed_template = YamlLoader::load_from_str(self.content).expect("loading the yaml");
 
         for (line_number, line) in self.content.lines().enumerate() {
-            dbg!(line);
             let trimmed_line = line.trim();
             if trimmed_line == "Resources:" {
                 self.state = State::ParsingResources;
@@ -49,7 +48,7 @@ impl<'s> Destinations<'s> {
             match self.state {
                 State::Init => todo!(),
                 State::ParsingResources => {
-                    let sanitised_line = dbg!(line.trim().replace(":", ""));
+                    let sanitised_line = line.trim().replace(":", "");
                     if parsed_structure.resources.contains_key(&sanitised_line) {
                         let span = span_from_line(line_number, line, &sanitised_line)
                             .context("constructing span")?;

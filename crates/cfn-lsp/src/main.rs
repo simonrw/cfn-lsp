@@ -328,7 +328,7 @@ fn extract_resource_type(line: &str, position: Position) -> Option<String> {
             .take_while(|&c| !c.is_whitespace() && c != '"')
             .collect::<String>();
         if trailing.starts_with("AWS::") {
-            let words: Vec<_> = dbg!(trailing.split_whitespace().collect());
+            let words: Vec<_> = trailing.split_whitespace().collect();
             let name = words[0];
             let range = (c, c + name.len());
             let character = position.character as usize;
