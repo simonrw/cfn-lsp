@@ -15,6 +15,8 @@ use tower_lsp::{
 };
 use tracing::Level;
 
+use crate::destinations::{Destinations, JumpDestination};
+
 mod destinations;
 
 // lsp
@@ -40,8 +42,20 @@ impl ServerState {
             uri: url,
             language_id: "".to_string(),
             version: 0,
-            text: contents,
+            text: contents.clone(),
         });
+
+        // also recompute the jump destinations
+        let mut destinations = Destinations::new(&contents);
+        match destinations.definitions() {
+            Ok(destinations) => {
+                tracing::debug!(?destinations, "extracted goto definition targets");
+                inner.jump_destinations = destinations;
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "error computing jump destinations");
+            }
+        }
     }
 
     async fn word_under_cursor(&self, cursor: Position) -> anyhow::Result<Option<String>> {
@@ -98,6 +112,7 @@ fn word_under_cursor(content: &str, cursor: Position) -> anyhow::Result<Option<S
 
 struct ServerStateInner {
     current_document: Option<TextDocumentItem>,
+    jump_destinations: Vec<JumpDestination>,
 }
 
 #[tower_lsp::async_trait]
@@ -208,6 +223,25 @@ impl LanguageServer for ServerState {
         params: GotoDefinitionParams,
     ) -> tower_lsp::jsonrpc::Result<Option<GotoDefinitionResponse>> {
         tracing::debug!(?params, "got goto definition request");
+        let position = params.text_document_position_params.position;
+        let inner = self.inner.lock().await;
+        match &inner.current_document {
+            Some(doc) => match word_under_cursor(&doc.text, position) {
+                Ok(Some(word)) => {
+                    for destination in &inner.jump_destinations {
+                        tracing::debug!(%word, destination = %destination.name, "matching destination with word");
+                        if word == destination.name {
+                            let span = &destination.span;
+                            tracing::debug!(?span, "Got jump target");
+                        }
+                    }
+                }
+                Ok(None) => todo!(),
+                Err(e) => tracing::warn!(error = %e, "No completions found"),
+            },
+            None => tracing::debug!("no current document"),
+        }
+        tracing::debug!("no destinations found");
         Ok(None)
     }
 
@@ -295,6 +329,7 @@ async fn main() -> anyhow::Result<()> {
         client,
         inner: Arc::new(Mutex::new(ServerStateInner {
             current_document: None,
+            jump_destinations: Vec::new(),
         })),
     });
     Server::new(stdin, stdout, socket).serve(service).await;

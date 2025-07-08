@@ -4,7 +4,7 @@ set -euo pipefail
 
 function main() {
     cargo build -p cfn-lsp
-    nvim --cmd 'source nvim.lua' template.json
+    nvim --cmd 'source nvim.lua' template.yml
 }
 
 main "$@"

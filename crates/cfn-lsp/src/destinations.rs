@@ -52,7 +52,7 @@ macro_rules! parse_line {
 }
 
 impl<'s> Destinations<'s> {
-    fn new(content: &'s str) -> Self {
+    pub fn new(content: &'s str) -> Self {
         Self {
             content,
             state: State::default(),
@@ -84,7 +84,7 @@ impl<'s> Destinations<'s> {
 
             // we are not opening a new section
             match self.state {
-                State::Init => todo!(),
+                State::Init => {},
                 State::ParsingResources => {
                     parse_line!(line, line_number, parsed_structure, JumpDestinationType::Resource, resources => destinations, false);
                 }
@@ -160,9 +160,9 @@ pub enum JumpDestinationType {
 
 #[derive(Debug)]
 pub struct JumpDestination {
-    name: String,
-    r#type: JumpDestinationType,
-    span: Span,
+    pub name: String,
+    pub r#type: JumpDestinationType,
+    pub span: Span,
 }
 
 #[cfg(test)]
