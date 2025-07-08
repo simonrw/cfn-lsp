@@ -19,6 +19,36 @@ pub struct Destinations<'s> {
     state: State,
 }
 
+macro_rules! parse_line {
+    ($line:ident, $line_number:expr, $parsed_structure:ident, $field:ident => $destinations:ident, false) => {{
+        let sanitised_line = $line.trim().replace(":", "");
+        let values = &$parsed_structure.$field;
+        if values.contains_key(&sanitised_line) {
+            let span = span_from_line($line_number, $line, &sanitised_line)
+                .context("constructing span")?;
+            let dest = JumpDestination {
+                name: sanitised_line.to_string(),
+                span,
+            };
+            $destinations.push(dest);
+        }
+    }};
+    ($line:ident, $line_number:expr, $parsed_structure:ident, $field:ident => $destinations:ident, true) => {{
+        let sanitised_line = $line.trim().replace(":", "");
+        if let Some(values) = &$parsed_structure.$field {
+            if values.contains_key(&sanitised_line) {
+                let span = span_from_line($line_number, $line, &sanitised_line)
+                    .context("constructing span")?;
+                let dest = JumpDestination {
+                    name: sanitised_line.to_string(),
+                    span,
+                };
+                $destinations.push(dest);
+            }
+        }
+    }};
+}
+
 impl<'s> Destinations<'s> {
     fn new(content: &'s str) -> Self {
         Self {
@@ -43,40 +73,28 @@ impl<'s> Destinations<'s> {
                 self.state = State::ParsingOutputs;
                 continue;
             } else if trimmed_line == "Mappings:" {
+                self.state = State::ParsingMappings;
+                continue;
             } else if trimmed_line == "Parameters:" {
+                self.state = State::ParsingParameters;
+                continue;
             }
 
             // we are not opening a new section
             match self.state {
                 State::Init => todo!(),
                 State::ParsingResources => {
-                    let sanitised_line = line.trim().replace(":", "");
-                    if parsed_structure.resources.contains_key(&sanitised_line) {
-                        let span = span_from_line(line_number, line, &sanitised_line)
-                            .context("constructing span")?;
-                        let dest = JumpDestination {
-                            name: sanitised_line.to_string(),
-                            span,
-                        };
-                        destinations.push(dest);
-                    }
+                    parse_line!(line, line_number, parsed_structure, resources => destinations, false);
                 }
                 State::ParsingOutputs => {
-                    let sanitised_line = line.trim().replace(":", "");
-                    if let Some(outputs) = &parsed_structure.outputs {
-                        if outputs.contains_key(&sanitised_line) {
-                            let span = span_from_line(line_number, line, &sanitised_line)
-                                .context("constructing span")?;
-                            let dest = JumpDestination {
-                                name: sanitised_line.to_string(),
-                                span,
-                            };
-                            destinations.push(dest);
-                        }
-                    }
+                    parse_line!(line, line_number, parsed_structure, outputs => destinations, true)
                 }
-                State::ParsingParameters => todo!(),
-                State::ParsingMappings => todo!(),
+                State::ParsingParameters => {
+                    parse_line!(line, line_number, parsed_structure, parameters => destinations, true);
+                }
+                State::ParsingMappings => {
+                    parse_line!(line, line_number, parsed_structure, mappings => destinations, true);
+                }
             }
         }
         Ok(destinations)
@@ -112,6 +130,10 @@ struct Template {
     resources: HashMap<String, serde_yaml::Value>,
     #[serde(rename = "Outputs")]
     outputs: Option<HashMap<String, serde_yaml::Value>>,
+    #[serde(rename = "Mappings")]
+    mappings: Option<HashMap<String, serde_yaml::Value>>,
+    #[serde(rename = "Parameters")]
+    parameters: Option<HashMap<String, serde_yaml::Value>>,
 }
 
 #[derive(Debug)]
@@ -155,6 +177,14 @@ mod tests {
     #[test]
     fn parse_with_outputs() {
         let contents = include_str!("../testdata/outputs.yml");
+        let mut destinations = Destinations::new(contents);
+        let targets = destinations.definitions();
+        insta::assert_debug_snapshot!(targets);
+    }
+
+    #[test]
+    fn parse_parameters() {
+        let contents = include_str!("../testdata/parameters.yml");
         let mut destinations = Destinations::new(contents);
         let targets = destinations.definitions();
         insta::assert_debug_snapshot!(targets);

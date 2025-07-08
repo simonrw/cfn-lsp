@@ -1,0 +1,8 @@
+Parameters:
+  MyParameter:
+    Type: String
+Resources:
+  Topic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Ref MyParameter
