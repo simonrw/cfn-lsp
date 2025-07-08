@@ -20,7 +20,7 @@ pub struct Destinations<'s> {
 }
 
 macro_rules! parse_line {
-    ($line:ident, $line_number:expr, $parsed_structure:ident, $field:ident => $destinations:ident, false) => {{
+    ($line:ident, $line_number:expr, $parsed_structure:ident, $jump_type:expr, $field:ident => $destinations:ident, false) => {{
         let sanitised_line = $line.trim().replace(":", "");
         let values = &$parsed_structure.$field;
         if values.contains_key(&sanitised_line) {
@@ -28,12 +28,13 @@ macro_rules! parse_line {
                 .context("constructing span")?;
             let dest = JumpDestination {
                 name: sanitised_line.to_string(),
+                r#type: $jump_type,
                 span,
             };
             $destinations.push(dest);
         }
     }};
-    ($line:ident, $line_number:expr, $parsed_structure:ident, $field:ident => $destinations:ident, true) => {{
+    ($line:ident, $line_number:expr, $parsed_structure:ident, $jump_type:expr, $field:ident => $destinations:ident, true) => {{
         let sanitised_line = $line.trim().replace(":", "");
         if let Some(values) = &$parsed_structure.$field {
             if values.contains_key(&sanitised_line) {
@@ -41,6 +42,7 @@ macro_rules! parse_line {
                     .context("constructing span")?;
                 let dest = JumpDestination {
                     name: sanitised_line.to_string(),
+                    r#type: $jump_type,
                     span,
                 };
                 $destinations.push(dest);
@@ -84,16 +86,16 @@ impl<'s> Destinations<'s> {
             match self.state {
                 State::Init => todo!(),
                 State::ParsingResources => {
-                    parse_line!(line, line_number, parsed_structure, resources => destinations, false);
+                    parse_line!(line, line_number, parsed_structure, JumpDestinationType::Resource, resources => destinations, false);
                 }
                 State::ParsingOutputs => {
-                    parse_line!(line, line_number, parsed_structure, outputs => destinations, true)
+                    parse_line!(line, line_number, parsed_structure, JumpDestinationType::Output, outputs => destinations, true)
                 }
                 State::ParsingParameters => {
-                    parse_line!(line, line_number, parsed_structure, parameters => destinations, true);
+                    parse_line!(line, line_number, parsed_structure, JumpDestinationType::Parameter, parameters => destinations, true);
                 }
                 State::ParsingMappings => {
-                    parse_line!(line, line_number, parsed_structure, mappings => destinations, true);
+                    parse_line!(line, line_number, parsed_structure, JumpDestinationType::Mapping, mappings => destinations, true);
                 }
             }
         }
@@ -149,8 +151,17 @@ pub struct Span {
 }
 
 #[derive(Debug)]
+pub enum JumpDestinationType {
+    Resource,
+    Parameter,
+    Mapping,
+    Output,
+}
+
+#[derive(Debug)]
 pub struct JumpDestination {
     name: String,
+    r#type: JumpDestinationType,
     span: Span,
 }
 

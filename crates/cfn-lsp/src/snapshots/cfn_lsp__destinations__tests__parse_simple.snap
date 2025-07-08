@@ -6,6 +6,7 @@ Ok(
     [
         JumpDestination {
             name: "MyTopic",
+            type: Resource,
             span: Span {
                 start: Position {
                     line: 1,
