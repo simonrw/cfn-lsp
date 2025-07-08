@@ -1,0 +1,6 @@
+Resources:
+  MyTopic:
+    Type: AWS::SNS::Topic
+Outputs:
+  MyTopicValue:
+    Value: !Ref MyTopic

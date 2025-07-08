@@ -1,0 +1,34 @@
+---
+source: crates/cfn-lsp/src/destinations.rs
+expression: targets
+---
+Ok(
+    [
+        JumpDestination {
+            name: "MyTopic",
+            span: Span {
+                start: Position {
+                    line: 1,
+                    col: 2,
+                },
+                end: Position {
+                    line: 1,
+                    col: 8,
+                },
+            },
+        },
+        JumpDestination {
+            name: "MyTopicValue",
+            span: Span {
+                start: Position {
+                    line: 4,
+                    col: 2,
+                },
+                end: Position {
+                    line: 4,
+                    col: 13,
+                },
+            },
+        },
+    ],
+)

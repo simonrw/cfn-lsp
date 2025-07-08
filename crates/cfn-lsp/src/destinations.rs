@@ -40,6 +40,8 @@ impl<'s> Destinations<'s> {
                 self.state = State::ParsingResources;
                 continue;
             } else if trimmed_line == "Outputs:" {
+                self.state = State::ParsingOutputs;
+                continue;
             } else if trimmed_line == "Mappings:" {
             } else if trimmed_line == "Parameters:" {
             }
@@ -59,7 +61,18 @@ impl<'s> Destinations<'s> {
                         destinations.push(dest);
                     }
                 }
-                State::ParsingOutputs => todo!(),
+                State::ParsingOutputs => {
+                    let sanitised_line = line.trim().replace(":", "");
+                    if parsed_structure.outputs.contains_key(&sanitised_line) {
+                        let span = span_from_line(line_number, line, &sanitised_line)
+                            .context("constructing span")?;
+                        let dest = JumpDestination {
+                            name: sanitised_line.to_string(),
+                            span,
+                        };
+                        destinations.push(dest);
+                    }
+                }
                 State::ParsingParameters => todo!(),
                 State::ParsingMappings => todo!(),
             }
@@ -95,6 +108,8 @@ fn span_from_line(line_number: usize, line: &str, target: &str) -> anyhow::Resul
 struct Template {
     #[serde(rename = "Resources")]
     resources: HashMap<String, serde_yaml::Value>,
+    #[serde(rename = "Outputs")]
+    outputs: HashMap<String, serde_yaml::Value>,
 }
 
 #[derive(Debug)]
@@ -130,6 +145,14 @@ mod tests {
     #[test]
     fn parse_two_resources() {
         let contents = include_str!("../testdata/two_resources.yml");
+        let mut destinations = Destinations::new(contents);
+        let targets = destinations.definitions();
+        insta::assert_debug_snapshot!(targets);
+    }
+
+    #[test]
+    fn parse_with_outputs() {
+        let contents = include_str!("../testdata/outputs.yml");
         let mut destinations = Destinations::new(contents);
         let targets = destinations.definitions();
         insta::assert_debug_snapshot!(targets);
