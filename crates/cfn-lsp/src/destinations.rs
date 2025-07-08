@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use anyhow::Context;
 use serde::Deserialize;
+use tower_lsp::lsp_types::Position as LspPosition;
+use tower_lsp::lsp_types::Range;
 use yaml_rust::YamlLoader;
 
 #[derive(Default)]
@@ -84,7 +86,7 @@ impl<'s> Destinations<'s> {
 
             // we are not opening a new section
             match self.state {
-                State::Init => {},
+                State::Init => {}
                 State::ParsingResources => {
                     parse_line!(line, line_number, parsed_structure, JumpDestinationType::Resource, resources => destinations, false);
                 }
@@ -144,10 +146,28 @@ pub struct Position {
     col: usize,
 }
 
+impl Position {
+    fn to_lsp_position(&self) -> LspPosition {
+        LspPosition {
+            line: u32::try_from(self.line).expect("line larger than 32 bit integer"),
+            character: u32::try_from(self.col).expect("column larger than 32 bit integer"),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Span {
-    start: Position,
-    end: Position,
+    pub start: Position,
+    pub end: Position,
+}
+
+impl Span {
+    pub fn to_range(&self) -> Range {
+        Range {
+            start: self.start.to_lsp_position(),
+            end: self.end.to_lsp_position(),
+        }
+    }
 }
 
 #[derive(Debug)]

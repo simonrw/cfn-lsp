@@ -8,14 +8,14 @@ use tower_lsp::{
         CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
         DidOpenTextDocumentParams, DidSaveTextDocumentParams, Documentation, GotoDefinitionParams,
         GotoDefinitionResponse, Hover, HoverContents, HoverParams, HoverProviderCapability,
-        InitializeParams, InitializeResult, MarkupContent, MarkupKind, OneOf, Position,
-        ServerCapabilities, TextDocumentItem, TextDocumentSyncCapability, TextDocumentSyncKind,
-        Url,
+        InitializeParams, InitializeResult, Location, MarkupContent, MarkupKind, OneOf, Position,
+        Range, ServerCapabilities, TextDocumentItem, TextDocumentSyncCapability,
+        TextDocumentSyncKind, Url,
     },
 };
 use tracing::Level;
 
-use crate::destinations::{Destinations, JumpDestination};
+use crate::destinations::{Destinations, JumpDestination, Span};
 
 mod destinations;
 
@@ -107,12 +107,22 @@ fn word_under_cursor(content: &str, cursor: Position) -> anyhow::Result<Option<S
         end_index += 1;
     }
 
-    Ok(Some(content[start_index..end_index].to_string()))
+    Ok(Some(current_line[start_index..end_index].to_string()))
 }
 
 struct ServerStateInner {
     current_document: Option<TextDocumentItem>,
     jump_destinations: Vec<JumpDestination>,
+}
+
+impl ServerStateInner {
+    async fn word_under_cursor(&self, cursor: Position) -> anyhow::Result<Option<String>> {
+        let Some(doc) = &self.current_document else {
+            return Ok(None);
+        };
+
+        word_under_cursor(&doc.text, cursor)
+    }
 }
 
 #[tower_lsp::async_trait]
@@ -225,21 +235,32 @@ impl LanguageServer for ServerState {
         tracing::debug!(?params, "got goto definition request");
         let position = params.text_document_position_params.position;
         let inner = self.inner.lock().await;
-        match &inner.current_document {
-            Some(doc) => match word_under_cursor(&doc.text, position) {
-                Ok(Some(word)) => {
-                    for destination in &inner.jump_destinations {
-                        tracing::debug!(%word, destination = %destination.name, "matching destination with word");
-                        if word == destination.name {
-                            let span = &destination.span;
-                            tracing::debug!(?span, "Got jump target");
-                        }
+        match inner.word_under_cursor(position).await {
+            Ok(Some(word)) => {
+                let mut candidates = Vec::new();
+                for destination in &inner.jump_destinations {
+                    if word == destination.name {
+                        candidates.push(destination);
                     }
                 }
-                Ok(None) => todo!(),
-                Err(e) => tracing::warn!(error = %e, "No completions found"),
-            },
-            None => tracing::debug!("no current document"),
+
+                tracing::debug!(?candidates, "found match candidates");
+                if candidates.len() == 0 {
+                    return Ok(None);
+                } else if candidates.len() > 1 {
+                    todo!("Unhandled case with more than one target: {:?}", candidates);
+                } else {
+                    let location = Location {
+                        uri: params.text_document_position_params.text_document.uri,
+                        range: candidates[0].span.to_range(),
+                    };
+                    let result = GotoDefinitionResponse::Scalar(location);
+                    tracing::debug!(?result, "returning jump response");
+                    return Ok(Some(result));
+                }
+            }
+            Ok(None) => todo!(),
+            Err(e) => tracing::warn!(error = %e, "No completions found"),
         }
         tracing::debug!("no destinations found");
         Ok(None)
@@ -451,5 +472,18 @@ mod tests {
 
             assert_eq!(word_under_cursor(content, position).unwrap(), expected);
         }
+    }
+
+    #[test]
+    fn larger_template() {
+        let content = include_str!("../testdata/template.yml");
+        let position = Position {
+            line: 46,
+            character: 24,
+        };
+        assert_eq!(
+            word_under_cursor(content, position).unwrap(),
+            Some("TrustedAccounts".to_string())
+        );
     }
 }
