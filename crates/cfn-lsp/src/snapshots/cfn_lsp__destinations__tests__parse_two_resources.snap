@@ -2,31 +2,33 @@
 source: crates/cfn-lsp/src/destinations.rs
 expression: targets
 ---
-[
-    JumpDestination {
-        name: "Topic",
-        span: Span {
-            start: Position {
-                line: 1,
-                col: 2,
-            },
-            end: Position {
-                line: 1,
-                col: 8,
-            },
-        },
-    },
-    JumpDestination {
-        name: "Parameter",
-        span: Span {
-            start: Position {
-                line: 4,
-                col: 2,
-            },
-            end: Position {
-                line: 4,
-                col: 12,
+Ok(
+    [
+        JumpDestination {
+            name: "Topic",
+            span: Span {
+                start: Position {
+                    line: 1,
+                    col: 2,
+                },
+                end: Position {
+                    line: 1,
+                    col: 6,
+                },
             },
         },
-    },
-]
+        JumpDestination {
+            name: "Parameter",
+            span: Span {
+                start: Position {
+                    line: 4,
+                    col: 2,
+                },
+                end: Position {
+                    line: 4,
+                    col: 10,
+                },
+            },
+        },
+    ],
+)

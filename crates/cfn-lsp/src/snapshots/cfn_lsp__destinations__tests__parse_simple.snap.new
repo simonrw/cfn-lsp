@@ -1,6 +1,0 @@
----
-source: crates/cfn-lsp/src/destinations.rs
-assertion_line: 64
-expression: targets
----
-[]

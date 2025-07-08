@@ -17,6 +17,7 @@ yaml-rust = "0.4.5"
 cfn-lsp-schema = { path = "../cfn-lsp-schema" }
 tower-lsp = "0.20.0"
 regex = "1.11.1"
+serde_yaml = "0.9.34"
 
 [build-dependencies]
 quote = "1.0.40"
