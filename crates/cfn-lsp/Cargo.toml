@@ -16,6 +16,8 @@ tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 yaml-rust = "0.4.5"
 cfn-lsp-schema = { path = "../cfn-lsp-schema" }
 tower-lsp = "0.20.0"
+regex = "1.11.1"
+serde_yaml = "0.9.34"
 
 [build-dependencies]
 quote = "1.0.40"
@@ -24,4 +26,7 @@ syn = { version = "2", default-features = false, features = [
     "full",
     "parsing",
 ] }
+
+[dev-dependencies]
+insta = "1.43.1"
 

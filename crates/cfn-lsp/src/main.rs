@@ -8,14 +8,16 @@ use tower_lsp::{
         CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
         DidOpenTextDocumentParams, DidSaveTextDocumentParams, Documentation, GotoDefinitionParams,
         GotoDefinitionResponse, Hover, HoverContents, HoverParams, HoverProviderCapability,
-        InitializeParams, InitializeResult, MarkupContent, MarkupKind, Position,
-        ServerCapabilities, TextDocumentItem, TextDocumentSyncCapability, TextDocumentSyncKind,
-        Url,
+        InitializeParams, InitializeResult, Location, MarkupContent, MarkupKind, OneOf, Position,
+        Range, ServerCapabilities, TextDocumentItem, TextDocumentSyncCapability,
+        TextDocumentSyncKind, Url,
     },
 };
 use tracing::Level;
 
-mod parsing;
+use crate::destinations::{Destinations, JumpDestination, Span};
+
+mod destinations;
 
 // lsp
 
@@ -40,8 +42,20 @@ impl ServerState {
             uri: url,
             language_id: "".to_string(),
             version: 0,
-            text: contents,
+            text: contents.clone(),
         });
+
+        // also recompute the jump destinations
+        let mut destinations = Destinations::new(&contents);
+        match destinations.definitions() {
+            Ok(destinations) => {
+                tracing::debug!(?destinations, "extracted goto definition targets");
+                inner.jump_destinations = destinations;
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "error computing jump destinations");
+            }
+        }
     }
 
     async fn word_under_cursor(&self, cursor: Position) -> anyhow::Result<Option<String>> {
@@ -93,11 +107,22 @@ fn word_under_cursor(content: &str, cursor: Position) -> anyhow::Result<Option<S
         end_index += 1;
     }
 
-    Ok(Some(content[start_index..end_index].to_string()))
+    Ok(Some(current_line[start_index..end_index].to_string()))
 }
 
 struct ServerStateInner {
     current_document: Option<TextDocumentItem>,
+    jump_destinations: Vec<JumpDestination>,
+}
+
+impl ServerStateInner {
+    async fn word_under_cursor(&self, cursor: Position) -> anyhow::Result<Option<String>> {
+        let Some(doc) = &self.current_document else {
+            return Ok(None);
+        };
+
+        word_under_cursor(&doc.text, cursor)
+    }
 }
 
 #[tower_lsp::async_trait]
@@ -114,6 +139,7 @@ impl LanguageServer for ServerState {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
                     TextDocumentSyncKind::FULL,
                 )),
+                definition_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
             ..Default::default()
@@ -207,6 +233,36 @@ impl LanguageServer for ServerState {
         params: GotoDefinitionParams,
     ) -> tower_lsp::jsonrpc::Result<Option<GotoDefinitionResponse>> {
         tracing::debug!(?params, "got goto definition request");
+        let position = params.text_document_position_params.position;
+        let inner = self.inner.lock().await;
+        match inner.word_under_cursor(position).await {
+            Ok(Some(word)) => {
+                let mut candidates = Vec::new();
+                for destination in &inner.jump_destinations {
+                    if word == destination.name {
+                        candidates.push(destination);
+                    }
+                }
+
+                tracing::debug!(?candidates, "found match candidates");
+                if candidates.len() == 0 {
+                    return Ok(None);
+                } else if candidates.len() > 1 {
+                    todo!("Unhandled case with more than one target: {:?}", candidates);
+                } else {
+                    let location = Location {
+                        uri: params.text_document_position_params.text_document.uri,
+                        range: candidates[0].span.to_range(),
+                    };
+                    let result = GotoDefinitionResponse::Scalar(location);
+                    tracing::debug!(?result, "returning jump response");
+                    return Ok(Some(result));
+                }
+            }
+            Ok(None) => todo!(),
+            Err(e) => tracing::warn!(error = %e, "No completions found"),
+        }
+        tracing::debug!("no destinations found");
         Ok(None)
     }
 
@@ -294,6 +350,7 @@ async fn main() -> anyhow::Result<()> {
         client,
         inner: Arc::new(Mutex::new(ServerStateInner {
             current_document: None,
+            jump_destinations: Vec::new(),
         })),
     });
     Server::new(stdin, stdout, socket).serve(service).await;
@@ -327,7 +384,7 @@ fn extract_resource_type(line: &str, position: Position) -> Option<String> {
             .take_while(|&c| !c.is_whitespace() && c != '"')
             .collect::<String>();
         if trailing.starts_with("AWS::") {
-            let words: Vec<_> = dbg!(trailing.split_whitespace().collect());
+            let words: Vec<_> = trailing.split_whitespace().collect();
             let name = words[0];
             let range = (c, c + name.len());
             let character = position.character as usize;
@@ -415,5 +472,18 @@ mod tests {
 
             assert_eq!(word_under_cursor(content, position).unwrap(), expected);
         }
+    }
+
+    #[test]
+    fn larger_template() {
+        let content = include_str!("../testdata/template.yml");
+        let position = Position {
+            line: 46,
+            character: 24,
+        };
+        assert_eq!(
+            word_under_cursor(content, position).unwrap(),
+            Some("TrustedAccounts".to_string())
+        );
     }
 }
