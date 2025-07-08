@@ -63,14 +63,16 @@ impl<'s> Destinations<'s> {
                 }
                 State::ParsingOutputs => {
                     let sanitised_line = line.trim().replace(":", "");
-                    if parsed_structure.outputs.contains_key(&sanitised_line) {
-                        let span = span_from_line(line_number, line, &sanitised_line)
-                            .context("constructing span")?;
-                        let dest = JumpDestination {
-                            name: sanitised_line.to_string(),
-                            span,
-                        };
-                        destinations.push(dest);
+                    if let Some(outputs) = &parsed_structure.outputs {
+                        if outputs.contains_key(&sanitised_line) {
+                            let span = span_from_line(line_number, line, &sanitised_line)
+                                .context("constructing span")?;
+                            let dest = JumpDestination {
+                                name: sanitised_line.to_string(),
+                                span,
+                            };
+                            destinations.push(dest);
+                        }
                     }
                 }
                 State::ParsingParameters => todo!(),
@@ -109,7 +111,7 @@ struct Template {
     #[serde(rename = "Resources")]
     resources: HashMap<String, serde_yaml::Value>,
     #[serde(rename = "Outputs")]
-    outputs: HashMap<String, serde_yaml::Value>,
+    outputs: Option<HashMap<String, serde_yaml::Value>>,
 }
 
 #[derive(Debug)]
