@@ -32,7 +32,7 @@ fn detect_file_type(content: &str) -> Option<FileType> {
     Some(FileType::Yaml)
 }
 
-pub fn parse(content: &str) -> Result<Template> {
+pub fn parse(content: &str) -> Result<Targets> {
     match detect_file_type(content) {
         Some(FileType::Json) => json::parse(content).map_err(Error::Parsing),
         Some(FileType::Yaml) => yaml::parse(content).map_err(Error::Parsing),
@@ -40,7 +40,7 @@ pub fn parse(content: &str) -> Result<Template> {
     }
 }
 
-pub fn parse_from(mut reader: impl Read) -> Result<Template> {
+pub fn parse_from(mut reader: impl Read) -> Result<Targets> {
     let mut content = String::new();
     reader.read_to_string(&mut content).map_err(Error::Io)?;
     parse(&content)

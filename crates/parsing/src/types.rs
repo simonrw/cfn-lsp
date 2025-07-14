@@ -1,1 +1,2 @@
-pub struct Template {}
+#[derive(Debug, PartialEq, Eq)]
+pub struct Targets {}
