@@ -13,6 +13,7 @@ macro_rules! build_queries {
 }
 
 pub(crate) fn parse(content: &str) -> std::result::Result<Targets, crate::ParsingError> {
+    eprintln!("{content}");
     let tree = {
         let mut parser = Parser::new();
         parser
@@ -53,6 +54,8 @@ pub(crate) fn parse(content: &str) -> std::result::Result<Targets, crate::Parsin
                 destinations.insert(location);
             }
         }
+        let mut destinations: Vec<_> = destinations.into_iter().collect();
+        destinations.sort();
         destinations
     };
 
@@ -76,14 +79,14 @@ pub(crate) fn parse(content: &str) -> std::result::Result<Targets, crate::Parsin
                 sources.insert(location);
             }
         }
+        let mut sources: Vec<_> = sources.into_iter().collect();
+        sources.sort();
         sources
     };
 
-    dbg!(&destinations);
-
     Ok(Targets {
-        destinations: destinations.into_iter().collect(),
-        sources: sources.into_iter().collect(),
+        destinations,
+        sources,
     })
 }
 
@@ -93,24 +96,70 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn parse_simple() {
-        let contents = std::fs::read_to_string("../cfn-lsp/testdata/simple.yml").unwrap();
-        let targets = parse(&contents).expect("parsing file for targets");
-        assert_eq!(
-            targets,
-            Targets {
-                destinations: vec![Location {
-                    name: "MyTopic".to_string(),
+    macro_rules! gen_test_for_template {
+        ($name:ident, $template_name:expr, $expected:expr) => {
+            #[test]
+            fn $name() {
+                let contents = std::fs::read_to_string($template_name).unwrap();
+                let targets = parse(&contents).expect("parsing file for targets");
+                assert_eq!(targets, $expected)
+            }
+        };
+    }
+
+    gen_test_for_template!(
+        parse_simple,
+        "../cfn-lsp/testdata/simple.yml",
+        Targets {
+            destinations: vec![Location {
+                name: "MyTopic".to_string(),
+                range: Range {
+                    start: Position { line: 1, column: 2 },
+                    end: Position { line: 1, column: 9 },
+                },
+            },],
+            sources: Vec::new(),
+        }
+    );
+
+    gen_test_for_template!(
+        parse_two_resources,
+        "../cfn-lsp/testdata/two_resources.yml",
+        Targets {
+            destinations: vec![
+                Location {
+                    name: "Parameter".to_string(),
+                    range: Range {
+                        start: Position { line: 4, column: 2 },
+                        end: Position {
+                            line: 4,
+                            column: 11
+                        },
+                    },
+                },
+                Location {
+                    name: "Topic".to_string(),
                     range: Range {
                         start: Position { line: 1, column: 2 },
-                        end: Position { line: 1, column: 9 },
+                        end: Position { line: 1, column: 7 },
                     },
-                },],
-                sources: Vec::new(),
-            }
-        )
-    }
+                },
+            ],
+            sources: vec![Location {
+                name: "Topic".to_string(),
+                range: Range {
+                    start: Position {
+                        line: 8,
+                        column: 18,
+                    },
+                    end: Position {
+                        line: 8,
+                        column: 23,
+                    }
+                },
+            }],
+        }
+    );
 
     #[test]
     fn parse_with_references() {

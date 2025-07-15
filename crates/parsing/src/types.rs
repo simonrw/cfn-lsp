@@ -54,6 +54,18 @@ impl Debug for Location {
     }
 }
 
+impl PartialOrd for Location {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Location {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.name.cmp(&other.name)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct Targets {
     pub destinations: Vec<Location>,
