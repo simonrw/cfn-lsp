@@ -5,6 +5,7 @@ mod json;
 mod types;
 mod yaml;
 
+use tree_sitter::LanguageError;
 pub use types::*;
 
 #[derive(Error, Debug)]
@@ -18,7 +19,10 @@ pub enum Error {
     Parsing(#[from] ParsingError),
 }
 #[derive(Error, Debug)]
-pub enum ParsingError {}
+pub enum ParsingError {
+    #[error("setting tree-sitter language")]
+    SettingLanguage(#[from] LanguageError),
+}
 
 pub type Result<T> = std::result::Result<T, Error>;
 

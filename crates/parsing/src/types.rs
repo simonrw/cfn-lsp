@@ -1,16 +1,31 @@
+use std::fmt::Debug;
+
 use tree_sitter::Node;
 
-#[derive(Hash, Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Hash, PartialEq, Eq, Clone, Copy)]
 pub struct Position {
     pub line: usize,
     pub column: usize,
 }
 
-#[derive(Hash, Debug, PartialEq, Eq, Clone, Copy)]
+impl Debug for Position {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.line, self.column)
+    }
+}
+
+#[derive(Hash, PartialEq, Eq, Clone, Copy)]
 pub struct Range {
     pub start: Position,
     pub end: Position,
 }
+
+impl Debug for Range {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}-{:?}", self.start, self.end)
+    }
+}
+
 impl Range {
     pub(crate) fn from_node(node: &Node<'_>) -> Range {
         let node_range = node.range();
@@ -27,13 +42,20 @@ impl Range {
     }
 }
 
-#[derive(Hash, Debug, PartialEq, Eq, Clone)]
+#[derive(Hash, PartialEq, Eq, Clone)]
 pub struct Location {
     pub name: String,
     pub range: Range,
 }
 
+impl Debug for Location {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<Location {}@{:?}>", self.name, self.range)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct Targets {
     pub destinations: Vec<Location>,
+    pub sources: Vec<Location>,
 }
