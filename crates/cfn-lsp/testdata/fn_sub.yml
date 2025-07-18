@@ -1,0 +1,9 @@
+Resources:
+  MyTopic:
+    Type: AWS::SNS::Topic
+  MyParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Value: !Sub "My foo ${MyTopic}"
+      Type: String
+    

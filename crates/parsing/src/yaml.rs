@@ -45,7 +45,6 @@ pub(crate) fn parse(content: &str) -> std::result::Result<Targets, crate::Parsin
                 }
                 let node = capture.node;
                 let node_text = node.utf8_text(content.as_bytes()).unwrap();
-                dbg!(node_text, idx, capture.index);
 
                 let location = Location {
                     name: node_text.to_string(),
@@ -60,7 +59,7 @@ pub(crate) fn parse(content: &str) -> std::result::Result<Targets, crate::Parsin
     };
 
     let sources = {
-        let query_content = build_queries!("sources/fn_ref.scm");
+        let query_content = build_queries!("sources/fn_ref.scm", "sources/fn_sub.scm");
         let query = Query::new(&tree_sitter_yaml::LANGUAGE.into(), &query_content).unwrap();
         let mut query_cursor = QueryCursor::new();
         let mut captures = query_cursor.captures(&query, root_node, content.as_bytes());
@@ -71,6 +70,7 @@ pub(crate) fn parse(content: &str) -> std::result::Result<Targets, crate::Parsin
             for capture in mat.captures.iter().filter(|c| c.index == 1) {
                 let node = capture.node;
                 let node_text = node.utf8_text(content.as_bytes()).unwrap();
+                dbg!(node_text);
 
                 let location = Location {
                     name: node_text.to_string(),
@@ -143,6 +143,15 @@ mod tests {
         Targets {
             destinations: vec![loc!("Parameter", 4, 2), loc!("Topic", 1, 2),],
             sources: vec![loc!("Topic", 8, 18),],
+        }
+    );
+
+    gen_test_for_template!(
+        parse_fn_sub,
+        "../cfn-lsp/testdata/fn_sub.yml",
+        Targets {
+            destinations: vec![loc!("MyTopic", 1, 2), loc!("MyParameter", 3, 2),],
+            sources: vec![loc!("MyTopic", 6, 28)],
         }
     );
 
