@@ -123,13 +123,16 @@ mod tests {
                 },
             }
         };
+        ($name:expr, $line:expr, $start_col:expr) => {
+            loc!($name, $line => $line, $start_col => $start_col + $name.len())
+        };
     }
 
     gen_test_for_template!(
         parse_simple,
         "../cfn-lsp/testdata/simple.yml",
         Targets {
-            destinations: vec![loc!("MyTopic", 1 => 1, 2 => 9)],
+            destinations: vec![loc!("MyTopic", 1, 2)],
             sources: Vec::new(),
         }
     );
@@ -138,11 +141,8 @@ mod tests {
         parse_two_resources,
         "../cfn-lsp/testdata/two_resources.yml",
         Targets {
-            destinations: vec![
-                loc!("Parameter", 4 => 4, 2 => 11),
-                loc!("Topic", 1 => 1, 2 => 7),
-            ],
-            sources: vec![loc!("Topic", 8 => 8, 18 => 23),],
+            destinations: vec![loc!("Parameter", 4, 2), loc!("Topic", 1, 2),],
+            sources: vec![loc!("Topic", 8, 18),],
         }
     );
 
