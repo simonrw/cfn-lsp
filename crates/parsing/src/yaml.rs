@@ -107,17 +107,29 @@ mod tests {
         };
     }
 
+    macro_rules! loc {
+        ($name:expr, $start_line:expr => $end_line:expr, $start_col:expr => $end_col:expr) => {
+            Location {
+                name: $name.to_string(),
+                range: Range {
+                    start: Position {
+                        line: $start_line,
+                        column: $start_col,
+                    },
+                    end: Position {
+                        line: $end_line,
+                        column: $end_col,
+                    },
+                },
+            }
+        };
+    }
+
     gen_test_for_template!(
         parse_simple,
         "../cfn-lsp/testdata/simple.yml",
         Targets {
-            destinations: vec![Location {
-                name: "MyTopic".to_string(),
-                range: Range {
-                    start: Position { line: 1, column: 2 },
-                    end: Position { line: 1, column: 9 },
-                },
-            },],
+            destinations: vec![loc!("MyTopic", 1 => 1, 2 => 9)],
             sources: Vec::new(),
         }
     );
@@ -127,37 +139,10 @@ mod tests {
         "../cfn-lsp/testdata/two_resources.yml",
         Targets {
             destinations: vec![
-                Location {
-                    name: "Parameter".to_string(),
-                    range: Range {
-                        start: Position { line: 4, column: 2 },
-                        end: Position {
-                            line: 4,
-                            column: 11
-                        },
-                    },
-                },
-                Location {
-                    name: "Topic".to_string(),
-                    range: Range {
-                        start: Position { line: 1, column: 2 },
-                        end: Position { line: 1, column: 7 },
-                    },
-                },
+                loc!("Parameter", 4 => 4, 2 => 11),
+                loc!("Topic", 1 => 1, 2 => 7),
             ],
-            sources: vec![Location {
-                name: "Topic".to_string(),
-                range: Range {
-                    start: Position {
-                        line: 8,
-                        column: 18,
-                    },
-                    end: Position {
-                        line: 8,
-                        column: 23,
-                    }
-                },
-            }],
+            sources: vec![loc!("Topic", 8 => 8, 18 => 23),],
         }
     );
 
