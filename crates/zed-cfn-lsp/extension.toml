@@ -5,3 +5,7 @@ schema_version = 1
 authors = ["Simon Walker <s.r.walker101@gmail.com>"]
 description = "Language server for CloudFormation yaml or JSON templates"
 repository = "https://github.com/simonrw/cfn-lsp"
+
+[language_servers.cfn-lsp]
+name = "CloudFormation Language Server"
+languages = ["yaml", "json"]
