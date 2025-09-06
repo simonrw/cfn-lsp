@@ -1,4 +1,4 @@
-use std::{iter::DoubleEndedIterator, path::Path, sync::Arc};
+use std::{path::Path, sync::Arc};
 
 use anyhow::Context;
 use tokio::sync::Mutex;
@@ -9,20 +9,20 @@ use tower_lsp::{
         DidOpenTextDocumentParams, DidSaveTextDocumentParams, Documentation, GotoDefinitionParams,
         GotoDefinitionResponse, Hover, HoverContents, HoverParams, HoverProviderCapability,
         InitializeParams, InitializeResult, Location, MarkupContent, MarkupKind, OneOf, Position,
-        Range, ServerCapabilities, TextDocumentItem, TextDocumentSyncCapability,
-        TextDocumentSyncKind, Url,
+        ServerCapabilities, TextDocumentItem, TextDocumentSyncCapability, TextDocumentSyncKind,
+        Url,
     },
 };
 use tracing::Level;
 
-use crate::destinations::{Destinations, JumpDestination, Span};
+use crate::destinations::{Destinations, JumpDestination};
 
 mod destinations;
 
 // lsp
 
 struct ServerState {
-    client: Client,
+    _client: Client,
     inner: Arc<Mutex<ServerStateInner>>,
 }
 
@@ -56,15 +56,6 @@ impl ServerState {
                 tracing::warn!(error = %e, "error computing jump destinations");
             }
         }
-    }
-
-    async fn word_under_cursor(&self, cursor: Position) -> anyhow::Result<Option<String>> {
-        let inner = self.inner.lock().await;
-        let Some(doc) = &inner.current_document else {
-            return Ok(None);
-        };
-
-        word_under_cursor(&doc.text, cursor)
     }
 }
 
@@ -347,7 +338,7 @@ async fn main() -> anyhow::Result<()> {
     let stdout = tokio::io::stdout();
 
     let (service, socket) = LspService::new(|client| ServerState {
-        client,
+        _client: client,
         inner: Arc::new(Mutex::new(ServerStateInner {
             current_document: None,
             jump_destinations: Vec::new(),
@@ -356,24 +347,6 @@ async fn main() -> anyhow::Result<()> {
     Server::new(stdin, stdout, socket).serve(service).await;
 
     Ok(())
-}
-
-trait StringContainsCursor {
-    fn contains_position(&self, position: Position, offset: usize) -> bool;
-}
-
-impl StringContainsCursor for &'_ str {
-    fn contains_position(&self, position: Position, offset: usize) -> bool {
-        let c = usize::try_from(position.character).unwrap();
-        c > offset && c < self.len()
-    }
-}
-
-impl StringContainsCursor for String {
-    fn contains_position(&self, position: Position, offset: usize) -> bool {
-        let c = usize::try_from(position.character).unwrap();
-        c > offset && c < self.len()
-    }
 }
 
 fn extract_resource_type(line: &str, position: Position) -> Option<String> {

@@ -66,7 +66,7 @@ impl<'s> Destinations<'s> {
 
         let mut destinations = Vec::new();
 
-        let parsed_template = YamlLoader::load_from_str(self.content).expect("loading the yaml");
+        let _parsed_template = YamlLoader::load_from_str(self.content).expect("loading the yaml");
 
         for (line_number, line) in self.content.lines().enumerate() {
             let trimmed_line = line.trim();
