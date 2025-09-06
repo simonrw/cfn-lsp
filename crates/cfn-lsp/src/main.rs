@@ -1,3 +1,4 @@
+//! Entry crate to the LSP itself
 use std::{path::Path, sync::Arc};
 
 use anyhow::Context;

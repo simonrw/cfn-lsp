@@ -6,6 +6,7 @@ use tower_lsp::lsp_types::Position as LspPosition;
 use tower_lsp::lsp_types::Range;
 use yaml_rust::YamlLoader;
 
+/// State of the parser
 #[derive(Default)]
 enum State {
     #[default]
@@ -16,8 +17,15 @@ enum State {
     ParsingMappings,
     // TODO: other template top level fields
 }
+
+/// Container type allowing access to the different reference types
+/// * definitions (for go to definition)
+/// * (future) completions
+/// * (future) references (for references to jump targets)
 pub struct Destinations<'s> {
+    /// Reference to the raw template
     content: &'s str,
+    /// Internal state of the parser
     state: State,
 }
 
