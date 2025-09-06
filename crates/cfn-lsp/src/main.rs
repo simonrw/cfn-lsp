@@ -239,7 +239,7 @@ impl LanguageServer for ServerState {
                 }
 
                 tracing::debug!(?candidates, "found match candidates");
-                if candidates.len() == 0 {
+                if candidates.is_empty() {
                     return Ok(None);
                 } else if candidates.len() > 1 {
                     todo!("Unhandled case with more than one target: {:?}", candidates);
