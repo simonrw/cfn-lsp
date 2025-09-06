@@ -197,35 +197,39 @@ pub struct JumpDestination {
 mod tests {
     use super::*;
 
-    #[test]
-    fn parse_simple() {
-        let contents = include_str!("../testdata/simple.yml");
-        let mut destinations = Destinations::new(contents);
-        let targets = destinations.definitions();
-        insta::assert_debug_snapshot!(targets);
-    }
+    mod definitions {
+        use super::*;
 
-    #[test]
-    fn parse_two_resources() {
-        let contents = include_str!("../testdata/two_resources.yml");
-        let mut destinations = Destinations::new(contents);
-        let targets = destinations.definitions();
-        insta::assert_debug_snapshot!(targets);
-    }
+        #[test]
+        fn parse_simple() {
+            let contents = include_str!("../testdata/simple.yml");
+            let mut destinations = Destinations::new(contents);
+            let targets = destinations.definitions();
+            insta::assert_debug_snapshot!(targets);
+        }
 
-    #[test]
-    fn parse_with_outputs() {
-        let contents = include_str!("../testdata/outputs.yml");
-        let mut destinations = Destinations::new(contents);
-        let targets = destinations.definitions();
-        insta::assert_debug_snapshot!(targets);
-    }
+        #[test]
+        fn parse_two_resources() {
+            let contents = include_str!("../testdata/two_resources.yml");
+            let mut destinations = Destinations::new(contents);
+            let targets = destinations.definitions();
+            insta::assert_debug_snapshot!(targets);
+        }
 
-    #[test]
-    fn parse_parameters() {
-        let contents = include_str!("../testdata/parameters.yml");
-        let mut destinations = Destinations::new(contents);
-        let targets = destinations.definitions();
-        insta::assert_debug_snapshot!(targets);
+        #[test]
+        fn parse_with_outputs() {
+            let contents = include_str!("../testdata/outputs.yml");
+            let mut destinations = Destinations::new(contents);
+            let targets = destinations.definitions();
+            insta::assert_debug_snapshot!(targets);
+        }
+
+        #[test]
+        fn parse_parameters() {
+            let contents = include_str!("../testdata/parameters.yml");
+            let mut destinations = Destinations::new(contents);
+            let targets = destinations.definitions();
+            insta::assert_debug_snapshot!(targets);
+        }
     }
 }
