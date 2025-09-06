@@ -9,8 +9,8 @@ use tower_lsp::{
         DidOpenTextDocumentParams, DidSaveTextDocumentParams, Documentation, GotoDefinitionParams,
         GotoDefinitionResponse, Hover, HoverContents, HoverParams, HoverProviderCapability,
         InitializeParams, InitializeResult, Location, MarkupContent, MarkupKind, OneOf, Position,
-        ServerCapabilities, TextDocumentItem, TextDocumentSyncCapability, TextDocumentSyncKind,
-        Url,
+        ServerCapabilities, ServerInfo, TextDocumentItem, TextDocumentSyncCapability,
+        TextDocumentSyncKind, Url,
     },
 };
 use tracing::Level;
@@ -133,7 +133,10 @@ impl LanguageServer for ServerState {
                 definition_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
-            ..Default::default()
+            server_info: Some(ServerInfo {
+                name: env!("CARGO_PKG_NAME").to_string(),
+                version: Some(env!("CARGO_PKG_VERSION").to_string()),
+            }),
         })
     }
 
