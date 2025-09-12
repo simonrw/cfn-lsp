@@ -1,0 +1,18 @@
+{
+  "Parameters": {
+    "MyParameter": {
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "MyResource": {
+      "Type": "AWS::SSM::Parameter",
+      "Properties": {
+        "Type": "String",
+        "Value": {
+          "Fn::Sub": "${MyParameter}"
+        }
+      }
+    }
+  }
+}
