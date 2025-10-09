@@ -18,6 +18,7 @@ use tracing::Level;
 
 use crate::destinations::{Destinations, JumpDestination};
 
+mod queries;
 mod destinations;
 
 // lsp

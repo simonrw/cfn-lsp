@@ -1,0 +1,126 @@
+use anyhow::Context;
+#[cfg(test)]
+use serde::Serialize;
+use tree_sitter::{Parser, Query, QueryCursor, StreamingIterator};
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
+struct Position {
+    line: usize,
+    col: usize,
+}
+
+impl Position {
+    fn new(line: usize, col: usize) -> Self {
+        Self { line, col }
+    }
+}
+
+impl From<tree_sitter::Point> for Position {
+    fn from(value: tree_sitter::Point) -> Self {
+        Self {
+            line: value.row,
+            col: value.column,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
+struct Ref {
+    target: String,
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
+struct Reference {
+    typ: ReferenceType,
+    start: Position,
+    end: Position,
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
+enum ReferenceType {
+    Ref(Ref),
+}
+
+fn extract_refs(content: &str) -> anyhow::Result<Vec<Reference>> {
+    let mut parser = Parser::new();
+    parser
+        .set_language(&tree_sitter_yaml::LANGUAGE.into())
+        .context("Error loading Rust grammar")?;
+    let tree = parser.parse(content, None).context("parsing text")?;
+    let root_node = tree.root_node();
+
+    let query_contents = include_str!("queries/ref.scm");
+    let query =
+        Query::new(&tree_sitter_yaml::LANGUAGE.into(), query_contents).context("parsing query")?;
+    let capture_names = query.capture_names();
+
+    let mut cursor = QueryCursor::new();
+
+    let mut out = Vec::new();
+
+    let mut matches = cursor.matches(&query, root_node, content.as_bytes());
+    while let Some(m) = matches.next() {
+        for capture in m.captures {
+            let capture_name = capture_names[capture.index as usize];
+            if !capture_name.ends_with(".target") {
+                continue;
+            }
+
+            let node_text = capture.node.utf8_text(content.as_bytes())?;
+            let node = capture.node;
+
+            let r = Ref {
+                target: node_text.to_string(),
+            };
+            let reference = Reference {
+                typ: ReferenceType::Ref(r),
+                start: node.start_position().into(),
+                end: node.end_position().into(),
+            };
+            out.push(reference);
+        }
+    }
+
+    Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extract_from_outputs() -> anyhow::Result<()> {
+        let contents = std::fs::read_to_string("testdata/outputs.yml").unwrap();
+        let refs = extract_refs(&contents).context("extracting refs")?;
+        insta::assert_yaml_snapshot!(refs);
+        Ok(())
+    }
+
+    #[test]
+    fn extract_from_parameters() -> anyhow::Result<()> {
+        let contents = std::fs::read_to_string("testdata/parameters.yml").unwrap();
+        let refs = extract_refs(&contents).context("extracting refs")?;
+        insta::assert_yaml_snapshot!(refs);
+        Ok(())
+    }
+
+    #[test]
+    fn extract_from_two_resources() -> anyhow::Result<()> {
+        let contents = std::fs::read_to_string("testdata/two_resources.yml").unwrap();
+        let refs = extract_refs(&contents).context("extracting refs")?;
+        insta::assert_yaml_snapshot!(refs);
+        Ok(())
+    }
+
+    #[test]
+    fn extract_from_template() -> anyhow::Result<()> {
+        let contents = std::fs::read_to_string("testdata/template.yml").unwrap();
+        let refs = extract_refs(&contents).context("extracting refs")?;
+        insta::assert_yaml_snapshot!(refs);
+        Ok(())
+    }
+}
