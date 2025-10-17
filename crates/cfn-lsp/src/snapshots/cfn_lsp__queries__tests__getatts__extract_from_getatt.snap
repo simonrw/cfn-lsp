@@ -1,0 +1,40 @@
+---
+source: crates/cfn-lsp/src/queries.rs
+expression: refs
+---
+- typ:
+    GetAtt:
+      target: MyQueue
+  start:
+    line: 11
+    col: 16
+  end:
+    line: 11
+    col: 23
+- typ:
+    GetAtt:
+      target: MyBucket
+  start:
+    line: 18
+    col: 30
+  end:
+    line: 18
+    col: 38
+- typ:
+    GetAtt:
+      target: MyTopic
+  start:
+    line: 19
+    col: 29
+  end:
+    line: 19
+    col: 36
+- typ:
+    GetAtt:
+      target: MyBucket
+  start:
+    line: 23
+    col: 19
+  end:
+    line: 23
+    col: 27

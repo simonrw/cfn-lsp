@@ -1,0 +1,24 @@
+Resources:
+  MyBucket:
+    Type: AWS::S3::Bucket
+  MyQueue:
+    Type: AWS::SQS::Queue
+  MyTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+        - Endpoint:
+            Fn::GetAtt:
+              - MyQueue
+              - Arn
+  MyFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Environment:
+        Variables:
+          BUCKET_ARN: !GetAtt MyBucket.Arn
+          TOPIC_ARN: !GetAtt MyTopic.TopicArn
+Outputs:
+  BucketDomainName:
+    Value:
+      Fn::GetAtt: [MyBucket, DomainName]

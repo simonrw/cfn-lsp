@@ -1,7 +1,7 @@
 use anyhow::Context;
 #[cfg(test)]
 use serde::Serialize;
-use tree_sitter::{Node, Parser, Query, QueryCursor, StreamingIterator, Tree};
+use tree_sitter::{Parser, Query, QueryCursor, StreamingIterator, Tree};
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
@@ -39,6 +39,12 @@ struct Sub {
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
+struct GetAtt {
+    target: String,
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
 struct Reference {
     typ: ReferenceType,
     start: Position,
@@ -50,6 +56,7 @@ struct Reference {
 enum ReferenceType {
     Ref(Ref),
     Sub(Sub),
+    GetAtt(GetAtt),
 }
 
 struct Extractor {
@@ -148,6 +155,61 @@ impl Extractor {
 
         Ok(out)
     }
+
+    fn extract_getatts(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
+        let root_node = self.tree.root_node();
+
+        let query_contents = include_str!("queries/getatt.scm");
+        let query = Query::new(&tree_sitter_yaml::LANGUAGE.into(), query_contents)
+            .context("parsing query")?;
+        let capture_names = query.capture_names();
+
+        let mut cursor = QueryCursor::new();
+
+        let mut out = Vec::new();
+
+        let mut matches = cursor.matches(&query, root_node, content.as_bytes());
+        while let Some(m) = matches.next() {
+            for capture in m.captures {
+                let capture_name = capture_names[capture.index as usize];
+
+                // Handle different capture patterns
+                if capture_name.ends_with(".target") {
+                    // For Fn::GetAtt: [Name, Property] or block sequence form
+                    let node_text = capture.node.utf8_text(content.as_bytes())?;
+                    let node = capture.node;
+
+                    let target = node_text.to_string();
+
+                    let reference = Reference {
+                        typ: ReferenceType::GetAtt(GetAtt { target }),
+                        start: node.start_position().into(),
+                        end: node.end_position().into(),
+                    };
+                    out.push(reference);
+                } else if capture_name.ends_with(".value") {
+                    // For !GetAtt Name.Property form
+                    let node_text = capture.node.utf8_text(content.as_bytes())?;
+                    let node = capture.node;
+
+                    // Extract just the Name part (before the dot)
+                    let target = node_text.split('.').next().unwrap_or(node_text).to_string();
+
+                    let mut end = node.start_position();
+                    end.column += target.len();
+
+                    let reference = Reference {
+                        typ: ReferenceType::GetAtt(GetAtt { target }),
+                        start: node.start_position().into(),
+                        end: end.into(),
+                    };
+                    out.push(reference);
+                }
+            }
+        }
+
+        Ok(out)
+    }
 }
 
 #[cfg(test)]
@@ -212,6 +274,21 @@ mod tests {
             let refs = extractor
                 .extract_subs(&contents)
                 .context("extracting refs")?;
+            insta::assert_yaml_snapshot!(refs);
+            Ok(())
+        }
+    }
+
+    mod getatts {
+        use super::*;
+
+        #[test]
+        fn extract_from_getatt() -> anyhow::Result<()> {
+            let contents = std::fs::read_to_string("testdata/getatt.yml").unwrap();
+            let extractor = Extractor::new(&contents)?;
+            let refs = extractor
+                .extract_getatts(&contents)
+                .context("extracting getatts")?;
             insta::assert_yaml_snapshot!(refs);
             Ok(())
         }
