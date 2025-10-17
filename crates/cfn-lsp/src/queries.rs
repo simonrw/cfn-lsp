@@ -82,6 +82,12 @@ pub(crate) enum ReferenceType {
 
 pub(crate) struct Extractor {
     tree: Tree,
+    ref_query: Query,
+    sub_query: Query,
+    getatt_query: Query,
+    findinmap_query: Query,
+    if_query: Query,
+    dependson_query: Query,
 }
 
 impl Extractor {
@@ -91,22 +97,78 @@ impl Extractor {
             .set_language(&tree_sitter_yaml::LANGUAGE.into())
             .context("Error loading Rust grammar")?;
         let tree = parser.parse(content, None).context("parsing text")?;
-        Ok(Self { tree })
+
+        // Load all queries once during initialization
+        let ref_query = Query::new(
+            &tree_sitter_yaml::LANGUAGE.into(),
+            include_str!("queries/ref.scm"),
+        )
+        .context("parsing ref query")?;
+
+        let sub_query = Query::new(
+            &tree_sitter_yaml::LANGUAGE.into(),
+            include_str!("queries/sub.scm"),
+        )
+        .context("parsing sub query")?;
+
+        let getatt_query = Query::new(
+            &tree_sitter_yaml::LANGUAGE.into(),
+            include_str!("queries/getatt.scm"),
+        )
+        .context("parsing getatt query")?;
+
+        let findinmap_query = Query::new(
+            &tree_sitter_yaml::LANGUAGE.into(),
+            include_str!("queries/findinmap.scm"),
+        )
+        .context("parsing findinmap query")?;
+
+        let if_query = Query::new(
+            &tree_sitter_yaml::LANGUAGE.into(),
+            include_str!("queries/if.scm"),
+        )
+        .context("parsing if query")?;
+
+        let dependson_query = Query::new(
+            &tree_sitter_yaml::LANGUAGE.into(),
+            include_str!("queries/dependson.scm"),
+        )
+        .context("parsing dependson query")?;
+
+        Ok(Self {
+            tree,
+            ref_query,
+            sub_query,
+            getatt_query,
+            findinmap_query,
+            if_query,
+            dependson_query,
+        })
+    }
+
+    /// Extract all references in a single pass
+    pub(crate) fn extract_all(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
+        let mut all_refs = Vec::new();
+
+        all_refs.extend(self.extract_refs(content)?);
+        all_refs.extend(self.extract_subs(content)?);
+        all_refs.extend(self.extract_getatts(content)?);
+        all_refs.extend(self.extract_findinmaps(content)?);
+        all_refs.extend(self.extract_ifs(content)?);
+        all_refs.extend(self.extract_dependsons(content)?);
+
+        Ok(all_refs)
     }
 
     pub(crate) fn extract_refs(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
         let root_node = self.tree.root_node();
-
-        let query_contents = include_str!("queries/ref.scm");
-        let query = Query::new(&tree_sitter_yaml::LANGUAGE.into(), query_contents)
-            .context("parsing query")?;
-        let capture_names = query.capture_names();
+        let capture_names = self.ref_query.capture_names();
 
         let mut cursor = QueryCursor::new();
 
         let mut out = Vec::new();
 
-        let mut matches = cursor.matches(&query, root_node, content.as_bytes());
+        let mut matches = cursor.matches(&self.ref_query, root_node, content.as_bytes());
         while let Some(m) = matches.next() {
             for capture in m.captures {
                 let capture_name = capture_names[capture.index as usize];
@@ -134,17 +196,13 @@ impl Extractor {
 
     pub(crate) fn extract_subs(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
         let root_node = self.tree.root_node();
-
-        let query_contents = include_str!("queries/sub.scm");
-        let query = Query::new(&tree_sitter_yaml::LANGUAGE.into(), query_contents)
-            .context("parsing query")?;
-        let capture_names = query.capture_names();
+        let capture_names = self.sub_query.capture_names();
 
         let mut cursor = QueryCursor::new();
 
         let mut out = Vec::new();
 
-        let mut matches = cursor.matches(&query, root_node, content.as_bytes());
+        let mut matches = cursor.matches(&self.sub_query, root_node, content.as_bytes());
         while let Some(m) = matches.next() {
             for capture in m.captures {
                 let capture_name = capture_names[capture.index as usize];
@@ -179,17 +237,13 @@ impl Extractor {
 
     pub(crate) fn extract_getatts(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
         let root_node = self.tree.root_node();
-
-        let query_contents = include_str!("queries/getatt.scm");
-        let query = Query::new(&tree_sitter_yaml::LANGUAGE.into(), query_contents)
-            .context("parsing query")?;
-        let capture_names = query.capture_names();
+        let capture_names = self.getatt_query.capture_names();
 
         let mut cursor = QueryCursor::new();
 
         let mut out = Vec::new();
 
-        let mut matches = cursor.matches(&query, root_node, content.as_bytes());
+        let mut matches = cursor.matches(&self.getatt_query, root_node, content.as_bytes());
         while let Some(m) = matches.next() {
             for capture in m.captures {
                 let capture_name = capture_names[capture.index as usize];
@@ -234,17 +288,13 @@ impl Extractor {
 
     pub(crate) fn extract_findinmaps(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
         let root_node = self.tree.root_node();
-
-        let query_contents = include_str!("queries/findinmap.scm");
-        let query = Query::new(&tree_sitter_yaml::LANGUAGE.into(), query_contents)
-            .context("parsing query")?;
-        let capture_names = query.capture_names();
+        let capture_names = self.findinmap_query.capture_names();
 
         let mut cursor = QueryCursor::new();
 
         let mut out = Vec::new();
 
-        let mut matches = cursor.matches(&query, root_node, content.as_bytes());
+        let mut matches = cursor.matches(&self.findinmap_query, root_node, content.as_bytes());
         while let Some(m) = matches.next() {
             for capture in m.captures {
                 let capture_name = capture_names[capture.index as usize];
@@ -271,17 +321,13 @@ impl Extractor {
 
     pub(crate) fn extract_ifs(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
         let root_node = self.tree.root_node();
-
-        let query_contents = include_str!("queries/if.scm");
-        let query = Query::new(&tree_sitter_yaml::LANGUAGE.into(), query_contents)
-            .context("parsing query")?;
-        let capture_names = query.capture_names();
+        let capture_names = self.if_query.capture_names();
 
         let mut cursor = QueryCursor::new();
 
         let mut out = Vec::new();
 
-        let mut matches = cursor.matches(&query, root_node, content.as_bytes());
+        let mut matches = cursor.matches(&self.if_query, root_node, content.as_bytes());
         while let Some(m) = matches.next() {
             for capture in m.captures {
                 let capture_name = capture_names[capture.index as usize];
@@ -308,17 +354,13 @@ impl Extractor {
 
     pub(crate) fn extract_dependsons(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
         let root_node = self.tree.root_node();
-
-        let query_contents = include_str!("queries/dependson.scm");
-        let query = Query::new(&tree_sitter_yaml::LANGUAGE.into(), query_contents)
-            .context("parsing query")?;
-        let capture_names = query.capture_names();
+        let capture_names = self.dependson_query.capture_names();
 
         let mut cursor = QueryCursor::new();
 
         let mut out = Vec::new();
 
-        let mut matches = cursor.matches(&query, root_node, content.as_bytes());
+        let mut matches = cursor.matches(&self.dependson_query, root_node, content.as_bytes());
         while let Some(m) = matches.next() {
             for capture in m.captures {
                 let capture_name = capture_names[capture.index as usize];
@@ -347,6 +389,29 @@ impl Extractor {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn extract_all_combines_references() -> anyhow::Result<()> {
+        let contents = std::fs::read_to_string("testdata/template.yml").unwrap();
+        let extractor = Extractor::new(&contents)?;
+
+        // Extract all at once
+        let all_refs = extractor.extract_all(&contents)?;
+
+        // Extract individually
+        let mut individual_refs = Vec::new();
+        individual_refs.extend(extractor.extract_refs(&contents)?);
+        individual_refs.extend(extractor.extract_subs(&contents)?);
+        individual_refs.extend(extractor.extract_getatts(&contents)?);
+        individual_refs.extend(extractor.extract_findinmaps(&contents)?);
+        individual_refs.extend(extractor.extract_ifs(&contents)?);
+        individual_refs.extend(extractor.extract_dependsons(&contents)?);
+
+        // Should have the same count
+        assert_eq!(all_refs.len(), individual_refs.len());
+
+        Ok(())
+    }
 
     mod refs {
         use super::*;

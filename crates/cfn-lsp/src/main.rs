@@ -21,8 +21,8 @@ use crate::{
     queries::{Extractor, Reference},
 };
 
-mod queries;
 mod destinations;
+mod queries;
 
 // lsp
 
@@ -63,31 +63,15 @@ impl ServerState {
         }
 
         match Extractor::new(&contents) {
-            Ok(extractor) => {
-                let mut all_references = Vec::new();
-
-                if let Ok(refs) = extractor.extract_refs(&contents) {
-                    all_references.extend(refs);
+            Ok(extractor) => match extractor.extract_all(&contents) {
+                Ok(all_references) => {
+                    tracing::debug!(count = all_references.len(), "extracted jump sources");
+                    inner.jump_sources = all_references;
                 }
-                if let Ok(subs) = extractor.extract_subs(&contents) {
-                    all_references.extend(subs);
+                Err(e) => {
+                    tracing::warn!(error = %e, "error extracting jump sources");
                 }
-                if let Ok(getatts) = extractor.extract_getatts(&contents) {
-                    all_references.extend(getatts);
-                }
-                if let Ok(findinmaps) = extractor.extract_findinmaps(&contents) {
-                    all_references.extend(findinmaps);
-                }
-                if let Ok(ifs) = extractor.extract_ifs(&contents) {
-                    all_references.extend(ifs);
-                }
-                if let Ok(dependsons) = extractor.extract_dependsons(&contents) {
-                    all_references.extend(dependsons);
-                }
-
-                tracing::debug!(count = all_references.len(), "extracted jump sources");
-                inner.jump_sources = all_references;
-            }
+            },
             Err(e) => {
                 tracing::warn!(error = %e, "error computing jump sources");
             }
