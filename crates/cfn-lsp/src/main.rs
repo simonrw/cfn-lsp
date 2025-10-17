@@ -16,7 +16,10 @@ use tower_lsp::{
 };
 use tracing::Level;
 
-use crate::destinations::{Destinations, JumpDestination};
+use crate::{
+    destinations::{Destinations, JumpDestination},
+    queries::{Extractor, Reference},
+};
 
 mod queries;
 mod destinations;
@@ -56,6 +59,37 @@ impl ServerState {
             }
             Err(e) => {
                 tracing::warn!(error = %e, "error computing jump destinations");
+            }
+        }
+
+        match Extractor::new(&contents) {
+            Ok(extractor) => {
+                let mut all_references = Vec::new();
+
+                if let Ok(refs) = extractor.extract_refs(&contents) {
+                    all_references.extend(refs);
+                }
+                if let Ok(subs) = extractor.extract_subs(&contents) {
+                    all_references.extend(subs);
+                }
+                if let Ok(getatts) = extractor.extract_getatts(&contents) {
+                    all_references.extend(getatts);
+                }
+                if let Ok(findinmaps) = extractor.extract_findinmaps(&contents) {
+                    all_references.extend(findinmaps);
+                }
+                if let Ok(ifs) = extractor.extract_ifs(&contents) {
+                    all_references.extend(ifs);
+                }
+                if let Ok(dependsons) = extractor.extract_dependsons(&contents) {
+                    all_references.extend(dependsons);
+                }
+
+                tracing::debug!(count = all_references.len(), "extracted jump sources");
+                inner.jump_sources = all_references;
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "error computing jump sources");
             }
         }
     }
@@ -106,6 +140,7 @@ fn word_under_cursor(content: &str, cursor: Position) -> anyhow::Result<Option<S
 struct ServerStateInner {
     current_document: Option<TextDocumentItem>,
     jump_destinations: Vec<JumpDestination>,
+    jump_sources: Vec<Reference>,
 }
 
 impl ServerStateInner {
@@ -347,6 +382,7 @@ async fn main() -> anyhow::Result<()> {
         inner: Arc::new(Mutex::new(ServerStateInner {
             current_document: None,
             jump_destinations: Vec::new(),
+            jump_sources: Vec::new(),
         })),
     });
     Server::new(stdin, stdout, socket).serve(service).await;

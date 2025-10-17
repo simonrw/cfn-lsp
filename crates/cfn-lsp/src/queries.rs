@@ -5,7 +5,7 @@ use tree_sitter::{Parser, Query, QueryCursor, StreamingIterator, Tree};
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
-struct Position {
+pub(crate) struct Position {
     line: usize,
     col: usize,
 }
@@ -27,51 +27,51 @@ impl From<tree_sitter::Point> for Position {
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
-struct Ref {
-    target: String,
+pub(crate) struct Ref {
+    pub(crate) target: String,
 }
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
-struct Sub {
-    target: String,
+pub(crate) struct Sub {
+    pub(crate) target: String,
 }
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
-struct GetAtt {
-    target: String,
+pub(crate) struct GetAtt {
+    pub(crate) target: String,
 }
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
-struct FindInMap {
-    target: String,
+pub(crate) struct FindInMap {
+    pub(crate) target: String,
 }
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
-struct If {
-    target: String,
+pub(crate) struct If {
+    pub(crate) target: String,
 }
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
-struct DependsOn {
-    target: String,
+pub(crate) struct DependsOn {
+    pub(crate) target: String,
 }
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
-struct Reference {
-    typ: ReferenceType,
-    start: Position,
-    end: Position,
+pub(crate) struct Reference {
+    pub(crate) typ: ReferenceType,
+    pub(crate) start: Position,
+    pub(crate) end: Position,
 }
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
-enum ReferenceType {
+pub(crate) enum ReferenceType {
     Ref(Ref),
     Sub(Sub),
     GetAtt(GetAtt),
@@ -80,12 +80,12 @@ enum ReferenceType {
     DependsOn(DependsOn),
 }
 
-struct Extractor {
+pub(crate) struct Extractor {
     tree: Tree,
 }
 
 impl Extractor {
-    fn new(content: &str) -> anyhow::Result<Self> {
+    pub(crate) fn new(content: &str) -> anyhow::Result<Self> {
         let mut parser = Parser::new();
         parser
             .set_language(&tree_sitter_yaml::LANGUAGE.into())
@@ -94,7 +94,7 @@ impl Extractor {
         Ok(Self { tree })
     }
 
-    fn extract_refs(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
+    pub(crate) fn extract_refs(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
         let root_node = self.tree.root_node();
 
         let query_contents = include_str!("queries/ref.scm");
@@ -132,7 +132,7 @@ impl Extractor {
         Ok(out)
     }
 
-    fn extract_subs(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
+    pub(crate) fn extract_subs(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
         let root_node = self.tree.root_node();
 
         let query_contents = include_str!("queries/sub.scm");
@@ -177,7 +177,7 @@ impl Extractor {
         Ok(out)
     }
 
-    fn extract_getatts(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
+    pub(crate) fn extract_getatts(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
         let root_node = self.tree.root_node();
 
         let query_contents = include_str!("queries/getatt.scm");
@@ -232,7 +232,7 @@ impl Extractor {
         Ok(out)
     }
 
-    fn extract_findinmaps(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
+    pub(crate) fn extract_findinmaps(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
         let root_node = self.tree.root_node();
 
         let query_contents = include_str!("queries/findinmap.scm");
@@ -269,7 +269,7 @@ impl Extractor {
         Ok(out)
     }
 
-    fn extract_ifs(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
+    pub(crate) fn extract_ifs(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
         let root_node = self.tree.root_node();
 
         let query_contents = include_str!("queries/if.scm");
@@ -306,7 +306,7 @@ impl Extractor {
         Ok(out)
     }
 
-    fn extract_dependsons(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
+    pub(crate) fn extract_dependsons(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
         let root_node = self.tree.root_node();
 
         let query_contents = include_str!("queries/dependson.scm");
