@@ -1,0 +1,22 @@
+---
+source: crates/cfn-lsp/src/queries.rs
+expression: expected_refs
+---
+- typ:
+    Sub:
+      target: "${AWS::AccountId}/foo"
+  start:
+    line: 6
+    col: 18
+  end:
+    line: 6
+    col: 39
+- typ:
+    Sub:
+      target: "${AWS::AccountId}/foo"
+  start:
+    line: 11
+    col: 23
+  end:
+    line: 11
+    col: 44

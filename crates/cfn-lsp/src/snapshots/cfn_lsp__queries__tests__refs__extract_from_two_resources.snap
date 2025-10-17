@@ -1,0 +1,13 @@
+---
+source: crates/cfn-lsp/src/queries.rs
+expression: refs
+---
+- typ:
+    Ref:
+      target: Topic
+  start:
+    line: 8
+    col: 18
+  end:
+    line: 8
+    col: 23
