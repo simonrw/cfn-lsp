@@ -38,3 +38,12 @@ expression: refs
   end:
     line: 23
     col: 27
+- typ:
+    GetAtt:
+      target: MyBucket
+  start:
+    line: 28
+    col: 10
+  end:
+    line: 28
+    col: 18

@@ -22,3 +22,9 @@ Outputs:
   BucketDomainName:
     Value:
       Fn::GetAtt: [MyBucket, DomainName]
+
+  BucketDomainName2:
+    Value:
+      Fn::GetAtt:
+        - MyBucket
+        - DomainName
