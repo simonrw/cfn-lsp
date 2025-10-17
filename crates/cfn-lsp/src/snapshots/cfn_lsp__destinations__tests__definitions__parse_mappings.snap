@@ -1,0 +1,78 @@
+---
+source: crates/cfn-lsp/src/destinations.rs
+expression: targets
+---
+Ok(
+    [
+        JumpDestination {
+            name: "RegionMap",
+            type: Mapping,
+            span: Span {
+                start: Position {
+                    line: 1,
+                    col: 2,
+                },
+                end: Position {
+                    line: 1,
+                    col: 10,
+                },
+            },
+        },
+        JumpDestination {
+            name: "EnvironmentMap",
+            type: Mapping,
+            span: Span {
+                start: Position {
+                    line: 8,
+                    col: 2,
+                },
+                end: Position {
+                    line: 8,
+                    col: 15,
+                },
+            },
+        },
+        JumpDestination {
+            name: "MyInstance",
+            type: Resource,
+            span: Span {
+                start: Position {
+                    line: 15,
+                    col: 2,
+                },
+                end: Position {
+                    line: 15,
+                    col: 11,
+                },
+            },
+        },
+        JumpDestination {
+            name: "MyBucket",
+            type: Resource,
+            span: Span {
+                start: Position {
+                    line: 25,
+                    col: 2,
+                },
+                end: Position {
+                    line: 25,
+                    col: 9,
+                },
+            },
+        },
+        JumpDestination {
+            name: "InstanceAMI",
+            type: Output,
+            span: Span {
+                start: Position {
+                    line: 34,
+                    col: 2,
+                },
+                end: Position {
+                    line: 34,
+                    col: 12,
+                },
+            },
+        },
+    ],
+)

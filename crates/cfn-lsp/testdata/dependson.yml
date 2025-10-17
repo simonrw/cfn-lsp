@@ -1,0 +1,51 @@
+Resources:
+  MyBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: my-bucket
+
+  MyBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DependsOn: MyBucket
+    Properties:
+      Bucket: !Ref MyBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: s3:GetObject
+            Resource: !Sub ${MyBucket.Arn}/*
+
+  MyQueue:
+    Type: AWS::SQS::Queue
+
+  MyTopic:
+    Type: AWS::SNS::Topic
+    DependsOn:
+      - MyQueue
+      - MyBucket
+
+  MyFunction:
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - MyTopic
+    Properties:
+      FunctionName: my-function
+      Runtime: python3.9
+      Handler: index.handler
+      Code:
+        ZipFile: |
+          def handler(event, context):
+              return 'Hello'
+      Role: !GetAtt MyRole.Arn
+
+  MyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole

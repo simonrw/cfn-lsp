@@ -45,6 +45,24 @@ struct GetAtt {
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
+struct FindInMap {
+    target: String,
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
+struct If {
+    target: String,
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
+struct DependsOn {
+    target: String,
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
 struct Reference {
     typ: ReferenceType,
     start: Position,
@@ -57,6 +75,9 @@ enum ReferenceType {
     Ref(Ref),
     Sub(Sub),
     GetAtt(GetAtt),
+    FindInMap(FindInMap),
+    If(If),
+    DependsOn(DependsOn),
 }
 
 struct Extractor {
@@ -210,6 +231,117 @@ impl Extractor {
 
         Ok(out)
     }
+
+    fn extract_findinmaps(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
+        let root_node = self.tree.root_node();
+
+        let query_contents = include_str!("queries/findinmap.scm");
+        let query = Query::new(&tree_sitter_yaml::LANGUAGE.into(), query_contents)
+            .context("parsing query")?;
+        let capture_names = query.capture_names();
+
+        let mut cursor = QueryCursor::new();
+
+        let mut out = Vec::new();
+
+        let mut matches = cursor.matches(&query, root_node, content.as_bytes());
+        while let Some(m) = matches.next() {
+            for capture in m.captures {
+                let capture_name = capture_names[capture.index as usize];
+                if !capture_name.ends_with(".target") {
+                    continue;
+                }
+
+                let node_text = capture.node.utf8_text(content.as_bytes())?;
+                let node = capture.node;
+
+                let target = node_text.to_string();
+
+                let reference = Reference {
+                    typ: ReferenceType::FindInMap(FindInMap { target }),
+                    start: node.start_position().into(),
+                    end: node.end_position().into(),
+                };
+                out.push(reference);
+            }
+        }
+
+        Ok(out)
+    }
+
+    fn extract_ifs(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
+        let root_node = self.tree.root_node();
+
+        let query_contents = include_str!("queries/if.scm");
+        let query = Query::new(&tree_sitter_yaml::LANGUAGE.into(), query_contents)
+            .context("parsing query")?;
+        let capture_names = query.capture_names();
+
+        let mut cursor = QueryCursor::new();
+
+        let mut out = Vec::new();
+
+        let mut matches = cursor.matches(&query, root_node, content.as_bytes());
+        while let Some(m) = matches.next() {
+            for capture in m.captures {
+                let capture_name = capture_names[capture.index as usize];
+                if !capture_name.ends_with(".target") {
+                    continue;
+                }
+
+                let node_text = capture.node.utf8_text(content.as_bytes())?;
+                let node = capture.node;
+
+                let target = node_text.to_string();
+
+                let reference = Reference {
+                    typ: ReferenceType::If(If { target }),
+                    start: node.start_position().into(),
+                    end: node.end_position().into(),
+                };
+                out.push(reference);
+            }
+        }
+
+        Ok(out)
+    }
+
+    fn extract_dependsons(&self, content: &str) -> anyhow::Result<Vec<Reference>> {
+        let root_node = self.tree.root_node();
+
+        let query_contents = include_str!("queries/dependson.scm");
+        let query = Query::new(&tree_sitter_yaml::LANGUAGE.into(), query_contents)
+            .context("parsing query")?;
+        let capture_names = query.capture_names();
+
+        let mut cursor = QueryCursor::new();
+
+        let mut out = Vec::new();
+
+        let mut matches = cursor.matches(&query, root_node, content.as_bytes());
+        while let Some(m) = matches.next() {
+            for capture in m.captures {
+                let capture_name = capture_names[capture.index as usize];
+                if !capture_name.ends_with(".target") {
+                    continue;
+                }
+
+                let node_text = capture.node.utf8_text(content.as_bytes())?;
+                let node = capture.node;
+
+                let target = node_text.to_string();
+
+                let reference = Reference {
+                    typ: ReferenceType::DependsOn(DependsOn { target }),
+                    start: node.start_position().into(),
+                    end: node.end_position().into(),
+                };
+                out.push(reference);
+            }
+        }
+
+        Ok(out)
+    }
 }
 
 #[cfg(test)]
@@ -289,6 +421,49 @@ mod tests {
             let refs = extractor
                 .extract_getatts(&contents)
                 .context("extracting getatts")?;
+            insta::assert_yaml_snapshot!(refs);
+            Ok(())
+        }
+    }
+
+    mod findinmaps {
+        use super::*;
+
+        #[test]
+        fn extract_from_findinmap() -> anyhow::Result<()> {
+            let contents = std::fs::read_to_string("testdata/findinmap.yml").unwrap();
+            let extractor = Extractor::new(&contents)?;
+            let refs = extractor
+                .extract_findinmaps(&contents)
+                .context("extracting findinmaps")?;
+            insta::assert_yaml_snapshot!(refs);
+            Ok(())
+        }
+    }
+
+    mod ifs {
+        use super::*;
+
+        #[test]
+        fn extract_from_if() -> anyhow::Result<()> {
+            let contents = std::fs::read_to_string("testdata/if.yml").unwrap();
+            let extractor = Extractor::new(&contents)?;
+            let refs = extractor.extract_ifs(&contents).context("extracting ifs")?;
+            insta::assert_yaml_snapshot!(refs);
+            Ok(())
+        }
+    }
+
+    mod dependsons {
+        use super::*;
+
+        #[test]
+        fn extract_from_dependson() -> anyhow::Result<()> {
+            let contents = std::fs::read_to_string("testdata/dependson.yml").unwrap();
+            let extractor = Extractor::new(&contents)?;
+            let refs = extractor
+                .extract_dependsons(&contents)
+                .context("extracting dependsons")?;
             insta::assert_yaml_snapshot!(refs);
             Ok(())
         }

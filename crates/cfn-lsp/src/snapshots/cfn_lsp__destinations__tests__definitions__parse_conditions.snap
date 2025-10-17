@@ -1,0 +1,134 @@
+---
+source: crates/cfn-lsp/src/destinations.rs
+expression: targets
+---
+Ok(
+    [
+        JumpDestination {
+            name: "IsProduction",
+            type: Condition,
+            span: Span {
+                start: Position {
+                    line: 1,
+                    col: 2,
+                },
+                end: Position {
+                    line: 1,
+                    col: 13,
+                },
+            },
+        },
+        JumpDestination {
+            name: "IsDevelopment",
+            type: Condition,
+            span: Span {
+                start: Position {
+                    line: 5,
+                    col: 2,
+                },
+                end: Position {
+                    line: 5,
+                    col: 14,
+                },
+            },
+        },
+        JumpDestination {
+            name: "CreateBucket",
+            type: Condition,
+            span: Span {
+                start: Position {
+                    line: 9,
+                    col: 2,
+                },
+                end: Position {
+                    line: 9,
+                    col: 13,
+                },
+            },
+        },
+        JumpDestination {
+            name: "Environment",
+            type: Parameter,
+            span: Span {
+                start: Position {
+                    line: 14,
+                    col: 2,
+                },
+                end: Position {
+                    line: 14,
+                    col: 12,
+                },
+            },
+        },
+        JumpDestination {
+            name: "SkipBucket",
+            type: Parameter,
+            span: Span {
+                start: Position {
+                    line: 17,
+                    col: 2,
+                },
+                end: Position {
+                    line: 17,
+                    col: 11,
+                },
+            },
+        },
+        JumpDestination {
+            name: "MyBucket",
+            type: Resource,
+            span: Span {
+                start: Position {
+                    line: 22,
+                    col: 2,
+                },
+                end: Position {
+                    line: 22,
+                    col: 9,
+                },
+            },
+        },
+        JumpDestination {
+            name: "MyQueue",
+            type: Resource,
+            span: Span {
+                start: Position {
+                    line: 33,
+                    col: 2,
+                },
+                end: Position {
+                    line: 33,
+                    col: 8,
+                },
+            },
+        },
+        JumpDestination {
+            name: "BucketName",
+            type: Output,
+            span: Span {
+                start: Position {
+                    line: 42,
+                    col: 2,
+                },
+                end: Position {
+                    line: 42,
+                    col: 11,
+                },
+            },
+        },
+        JumpDestination {
+            name: "Environment",
+            type: Output,
+            span: Span {
+                start: Position {
+                    line: 46,
+                    col: 2,
+                },
+                end: Position {
+                    line: 46,
+                    col: 12,
+                },
+            },
+        },
+    ],
+)

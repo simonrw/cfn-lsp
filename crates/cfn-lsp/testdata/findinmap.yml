@@ -1,0 +1,39 @@
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: ami-12345678
+      InstanceType: t2.micro
+    us-west-2:
+      AMI: ami-87654321
+      InstanceType: t2.small
+  EnvironmentMap:
+    dev:
+      Size: small
+    prod:
+      Size: large
+
+Resources:
+  MyInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId:
+        Fn::FindInMap:
+          - RegionMap
+          - !Ref AWS::Region
+          - AMI
+      InstanceType: !FindInMap [RegionMap, us-east-1, InstanceType]
+
+  MyBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      Tags:
+        - Key: Size
+          Value:
+            Fn::FindInMap: [EnvironmentMap, dev, Size]
+
+Outputs:
+  InstanceAMI:
+    Value: !FindInMap
+      - RegionMap
+      - us-west-2
+      - AMI
