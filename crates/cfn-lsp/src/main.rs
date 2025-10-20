@@ -10,8 +10,8 @@ use tower_lsp::{
         DidOpenTextDocumentParams, DidSaveTextDocumentParams, Documentation, GotoDefinitionParams,
         GotoDefinitionResponse, Hover, HoverContents, HoverParams, HoverProviderCapability,
         InitializeParams, InitializeResult, Location, MarkupContent, MarkupKind, OneOf, Position,
-        ServerCapabilities, ServerInfo, TextDocumentItem, TextDocumentSyncCapability,
-        TextDocumentSyncKind, Url,
+        ReferenceParams, ServerCapabilities, ServerInfo, TextDocumentItem,
+        TextDocumentSyncCapability, TextDocumentSyncKind, Url,
     },
 };
 use tracing::Level;
@@ -152,6 +152,7 @@ impl LanguageServer for ServerState {
                     TextDocumentSyncKind::FULL,
                 )),
                 definition_provider: Some(OneOf::Left(true)),
+                references_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
             server_info: Some(ServerInfo {
@@ -279,6 +280,76 @@ impl LanguageServer for ServerState {
         }
         tracing::debug!("no destinations found");
         Ok(None)
+    }
+
+    async fn references(
+        &self,
+        params: ReferenceParams,
+    ) -> tower_lsp::jsonrpc::Result<Option<Vec<Location>>> {
+        tracing::debug!(?params, "got references request");
+        let position = params.text_document_position.position;
+        let uri = params.text_document_position.text_document.uri.clone();
+
+        let inner = self.inner.lock().await;
+
+        // Get the word under cursor to find what symbol we're looking for
+        let Some(word) = inner.word_under_cursor(position).await.ok().flatten() else {
+            tracing::debug!("no word under cursor");
+            return Ok(None);
+        };
+
+        tracing::debug!(?word, "finding references for symbol");
+
+        // Find all references to this symbol in jump_sources
+        let mut locations = Vec::new();
+        for reference in &inner.jump_sources {
+            let target = match &reference.typ {
+                crate::queries::ReferenceType::Ref(r) => &r.target,
+                crate::queries::ReferenceType::Sub(s) => &s.target,
+                crate::queries::ReferenceType::GetAtt(g) => &g.target,
+                crate::queries::ReferenceType::FindInMap(f) => &f.target,
+                crate::queries::ReferenceType::If(i) => &i.target,
+                crate::queries::ReferenceType::DependsOn(d) => &d.target,
+            };
+
+            if target == &word {
+                let range = tower_lsp::lsp_types::Range {
+                    start: tower_lsp::lsp_types::Position {
+                        line: reference.start.line as u32,
+                        character: reference.start.col as u32,
+                    },
+                    end: tower_lsp::lsp_types::Position {
+                        line: reference.end.line as u32,
+                        character: reference.end.col as u32,
+                    },
+                };
+
+                locations.push(Location {
+                    uri: uri.clone(),
+                    range,
+                });
+            }
+        }
+
+        // If include_declaration is true, also include the definition location
+        if params.context.include_declaration {
+            for destination in &inner.jump_destinations {
+                if destination.name == word {
+                    locations.push(Location {
+                        uri: uri.clone(),
+                        range: destination.span.to_range(),
+                    });
+                }
+            }
+        }
+
+        tracing::debug!(count = locations.len(), "found references");
+
+        if locations.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(locations))
+        }
     }
 
     async fn hover(&self, params: HoverParams) -> tower_lsp::jsonrpc::Result<Option<Hover>> {

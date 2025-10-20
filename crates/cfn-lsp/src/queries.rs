@@ -6,8 +6,8 @@ use tree_sitter::{Parser, Query, QueryCursor, StreamingIterator, Tree};
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
 pub(crate) struct Position {
-    line: usize,
-    col: usize,
+    pub(crate) line: usize,
+    pub(crate) col: usize,
 }
 
 impl Position {
