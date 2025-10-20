@@ -1,0 +1,58 @@
+---
+source: crates/cfn-lsp/src/queries.rs
+expression: refs
+---
+- typ:
+    GetAtt:
+      target: IamRoleLambdaExecution
+  start:
+    line: 173
+    col: 13
+  end:
+    line: 173
+    col: 35
+- typ:
+    GetAtt:
+      target: ApiGatewayRestApi
+  start:
+    line: 199
+    col: 13
+  end:
+    line: 199
+    col: 30
+- typ:
+    GetAtt:
+      target: ApiGatewayRestApi
+  start:
+    line: 216
+    col: 13
+  end:
+    line: 216
+    col: 30
+- typ:
+    GetAtt:
+      target: ApiLambdaFunction
+  start:
+    line: 243
+    col: 21
+  end:
+    line: 243
+    col: 38
+- typ:
+    GetAtt:
+      target: ApiLambdaFunction
+  start:
+    line: 289
+    col: 21
+  end:
+    line: 289
+    col: 38
+- typ:
+    GetAtt:
+      target: ApiLambdaFunction
+  start:
+    line: 322
+    col: 13
+  end:
+    line: 322
+    col: 30

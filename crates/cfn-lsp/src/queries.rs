@@ -88,6 +88,7 @@ pub(crate) struct Extractor {
     findinmap_query: Query,
     if_query: Query,
     dependson_query: Query,
+    is_json: bool,
 }
 
 impl Extractor {
@@ -98,7 +99,6 @@ impl Extractor {
             .context("Error loading Rust grammar")?;
         let tree = parser.parse(content, None).context("parsing text")?;
 
-        // Load all queries once during initialization
         let ref_query = Query::new(
             &tree_sitter_yaml::LANGUAGE.into(),
             include_str!("queries/ref.scm"),
@@ -143,6 +143,62 @@ impl Extractor {
             findinmap_query,
             if_query,
             dependson_query,
+            is_json: false,
+        })
+    }
+
+    pub(crate) fn new_json(content: &str) -> anyhow::Result<Self> {
+        let mut parser = Parser::new();
+        parser
+            .set_language(&tree_sitter_json::LANGUAGE.into())
+            .context("Error loading JSON grammar")?;
+        let tree = parser.parse(content, None).context("parsing text")?;
+
+        let ref_query = Query::new(
+            &tree_sitter_json::LANGUAGE.into(),
+            include_str!("queries/ref.json.scm"),
+        )
+        .context("parsing ref query")?;
+
+        let sub_query = Query::new(
+            &tree_sitter_json::LANGUAGE.into(),
+            include_str!("queries/sub.json.scm"),
+        )
+        .context("parsing sub query")?;
+
+        let getatt_query = Query::new(
+            &tree_sitter_json::LANGUAGE.into(),
+            include_str!("queries/getatt.json.scm"),
+        )
+        .context("parsing getatt query")?;
+
+        let findinmap_query = Query::new(
+            &tree_sitter_json::LANGUAGE.into(),
+            include_str!("queries/findinmap.json.scm"),
+        )
+        .context("parsing findinmap query")?;
+
+        let if_query = Query::new(
+            &tree_sitter_json::LANGUAGE.into(),
+            include_str!("queries/if.json.scm"),
+        )
+        .context("parsing if query")?;
+
+        let dependson_query = Query::new(
+            &tree_sitter_json::LANGUAGE.into(),
+            include_str!("queries/dependson.json.scm"),
+        )
+        .context("parsing dependson query")?;
+
+        Ok(Self {
+            tree,
+            ref_query,
+            sub_query,
+            getatt_query,
+            findinmap_query,
+            if_query,
+            dependson_query,
+            is_json: true,
         })
     }
 
@@ -213,22 +269,34 @@ impl Extractor {
                 let node_text = capture.node.utf8_text(content.as_bytes())?;
                 let node = capture.node;
 
-                // Strip surrounding quotes from the captured string
-                let target = node_text.trim_matches('"').to_string();
+                if self.is_json {
+                    let target = node_text.to_string();
+                    let start = node.start_position();
+                    let end = node.end_position();
 
-                // Adjust positions to exclude the surrounding quotes
-                let mut start = node.start_position();
-                let mut end = node.end_position();
-                start.column += 1; // Skip opening quote
-                end.column -= 1; // Skip closing quote
+                    let r = Sub { target };
+                    let reference = Reference {
+                        typ: ReferenceType::Sub(r),
+                        start: start.into(),
+                        end: end.into(),
+                    };
+                    out.push(reference);
+                } else {
+                    let target = node_text.trim_matches('"').to_string();
 
-                let r = Sub { target };
-                let reference = Reference {
-                    typ: ReferenceType::Sub(r),
-                    start: start.into(),
-                    end: end.into(),
-                };
-                out.push(reference);
+                    let mut start = node.start_position();
+                    let mut end = node.end_position();
+                    start.column += 1;
+                    end.column -= 1;
+
+                    let r = Sub { target };
+                    let reference = Reference {
+                        typ: ReferenceType::Sub(r),
+                        start: start.into(),
+                        end: end.into(),
+                    };
+                    out.push(reference);
+                }
             }
         }
 
@@ -529,6 +597,65 @@ mod tests {
             let refs = extractor
                 .extract_dependsons(&contents)
                 .context("extracting dependsons")?;
+            insta::assert_yaml_snapshot!(refs);
+            Ok(())
+        }
+    }
+
+    mod json {
+        use super::*;
+
+        #[test]
+        fn extract_refs_from_json() -> anyhow::Result<()> {
+            let contents = std::fs::read_to_string("testdata/template.json").unwrap();
+            let extractor = Extractor::new_json(&contents)?;
+            let refs = extractor
+                .extract_refs(&contents)
+                .context("extracting refs")?;
+            insta::assert_yaml_snapshot!(refs);
+            Ok(())
+        }
+
+        #[test]
+        fn extract_subs_from_json() -> anyhow::Result<()> {
+            let contents = std::fs::read_to_string("testdata/template.json").unwrap();
+            let extractor = Extractor::new_json(&contents)?;
+            let refs = extractor
+                .extract_subs(&contents)
+                .context("extracting subs")?;
+            insta::assert_yaml_snapshot!(refs);
+            Ok(())
+        }
+
+        #[test]
+        fn extract_getatts_from_json() -> anyhow::Result<()> {
+            let contents = std::fs::read_to_string("testdata/template.json").unwrap();
+            let extractor = Extractor::new_json(&contents)?;
+            let refs = extractor
+                .extract_getatts(&contents)
+                .context("extracting getatts")?;
+            insta::assert_yaml_snapshot!(refs);
+            Ok(())
+        }
+
+        #[test]
+        fn extract_dependsons_from_json() -> anyhow::Result<()> {
+            let contents = std::fs::read_to_string("testdata/template.json").unwrap();
+            let extractor = Extractor::new_json(&contents)?;
+            let refs = extractor
+                .extract_dependsons(&contents)
+                .context("extracting dependsons")?;
+            insta::assert_yaml_snapshot!(refs);
+            Ok(())
+        }
+
+        #[test]
+        fn extract_all_from_json() -> anyhow::Result<()> {
+            let contents = std::fs::read_to_string("testdata/template.json").unwrap();
+            let extractor = Extractor::new_json(&contents)?;
+            let refs = extractor
+                .extract_all(&contents)
+                .context("extracting all")?;
             insta::assert_yaml_snapshot!(refs);
             Ok(())
         }

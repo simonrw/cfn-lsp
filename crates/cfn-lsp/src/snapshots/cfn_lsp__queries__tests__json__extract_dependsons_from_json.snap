@@ -1,0 +1,49 @@
+---
+source: crates/cfn-lsp/src/queries.rs
+expression: refs
+---
+- typ:
+    DependsOn:
+      target: ApiLogGroup
+  start:
+    line: 179
+    col: 9
+  end:
+    line: 179
+    col: 20
+- typ:
+    DependsOn:
+      target: ApiLambdaPermissionApiGateway
+  start:
+    line: 255
+    col: 9
+  end:
+    line: 255
+    col: 38
+- typ:
+    DependsOn:
+      target: ApiLambdaPermissionApiGateway
+  start:
+    line: 301
+    col: 9
+  end:
+    line: 301
+    col: 38
+- typ:
+    DependsOn:
+      target: ApiGatewayMethodAny
+  start:
+    line: 313
+    col: 9
+  end:
+    line: 313
+    col: 28
+- typ:
+    DependsOn:
+      target: ApiGatewayMethodAnyVarAny
+  start:
+    line: 314
+    col: 9
+  end:
+    line: 314
+    col: 34

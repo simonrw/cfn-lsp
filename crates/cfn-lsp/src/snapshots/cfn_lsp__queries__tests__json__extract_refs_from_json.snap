@@ -1,0 +1,220 @@
+---
+source: crates/cfn-lsp/src/queries.rs
+expression: refs
+---
+- typ:
+    Ref:
+      target: ServerlessDeploymentBucket
+  start:
+    line: 22
+    col: 18
+  end:
+    line: 22
+    col: 44
+- typ:
+    Ref:
+      target: "AWS::Partition"
+  start:
+    line: 37
+    col: 32
+  end:
+    line: 37
+    col: 46
+- typ:
+    Ref:
+      target: ServerlessDeploymentBucket
+  start:
+    line: 41
+    col: 32
+  end:
+    line: 41
+    col: 58
+- typ:
+    Ref:
+      target: "AWS::Partition"
+  start:
+    line: 53
+    col: 32
+  end:
+    line: 53
+    col: 46
+- typ:
+    Ref:
+      target: ServerlessDeploymentBucket
+  start:
+    line: 57
+    col: 32
+  end:
+    line: 57
+    col: 58
+- typ:
+    Ref:
+      target: "AWS::Region"
+  start:
+    line: 149
+    col: 24
+  end:
+    line: 149
+    col: 35
+- typ:
+    Ref:
+      target: ServerlessDeploymentBucket
+  start:
+    line: 162
+    col: 20
+  end:
+    line: 162
+    col: 46
+- typ:
+    Ref:
+      target: ApiGatewayRestApi
+  start:
+    line: 205
+    col: 18
+  end:
+    line: 205
+    col: 35
+- typ:
+    Ref:
+      target: ApiGatewayRestApi
+  start:
+    line: 221
+    col: 18
+  end:
+    line: 221
+    col: 35
+- typ:
+    Ref:
+      target: "AWS::Partition"
+  start:
+    line: 234
+    col: 26
+  end:
+    line: 234
+    col: 40
+- typ:
+    Ref:
+      target: "AWS::Region"
+  start:
+    line: 238
+    col: 26
+  end:
+    line: 238
+    col: 37
+- typ:
+    Ref:
+      target: ApiGatewayResourceAnyVar
+  start:
+    line: 264
+    col: 18
+  end:
+    line: 264
+    col: 42
+- typ:
+    Ref:
+      target: ApiGatewayRestApi
+  start:
+    line: 267
+    col: 18
+  end:
+    line: 267
+    col: 35
+- typ:
+    Ref:
+      target: "AWS::Partition"
+  start:
+    line: 280
+    col: 26
+  end:
+    line: 280
+    col: 40
+- typ:
+    Ref:
+      target: "AWS::Region"
+  start:
+    line: 284
+    col: 26
+  end:
+    line: 284
+    col: 37
+- typ:
+    Ref:
+      target: ApiGatewayRestApi
+  start:
+    line: 308
+    col: 18
+  end:
+    line: 308
+    col: 35
+- typ:
+    Ref:
+      target: "AWS::Partition"
+  start:
+    line: 334
+    col: 24
+  end:
+    line: 334
+    col: 38
+- typ:
+    Ref:
+      target: "AWS::Region"
+  start:
+    line: 338
+    col: 24
+  end:
+    line: 338
+    col: 35
+- typ:
+    Ref:
+      target: "AWS::AccountId"
+  start:
+    line: 342
+    col: 24
+  end:
+    line: 342
+    col: 38
+- typ:
+    Ref:
+      target: ApiGatewayRestApi
+  start:
+    line: 346
+    col: 24
+  end:
+    line: 346
+    col: 41
+- typ:
+    Ref:
+      target: ServerlessDeploymentBucket
+  start:
+    line: 358
+    col: 16
+  end:
+    line: 358
+    col: 42
+- typ:
+    Ref:
+      target: ApiGatewayRestApi
+  start:
+    line: 372
+    col: 22
+  end:
+    line: 372
+    col: 39
+- typ:
+    Ref:
+      target: "AWS::Region"
+  start:
+    line: 376
+    col: 22
+  end:
+    line: 376
+    col: 33
+- typ:
+    Ref:
+      target: "AWS::URLSuffix"
+  start:
+    line: 380
+    col: 22
+  end:
+    line: 380
+    col: 36
