@@ -1,0 +1,48 @@
+Conditions:
+  IsProduction:
+    Fn::Equals:
+      - !Ref Environment
+      - production
+  IsDevelopment:
+    Fn::Equals:
+      - !Ref Environment
+      - development
+  CreateBucket:
+    Fn::Not:
+      - !Ref SkipBucket
+
+Parameters:
+  Environment:
+    Type: String
+    Default: development
+  SkipBucket:
+    Type: String
+    Default: "false"
+
+Resources:
+  MyBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Fn::If:
+          - IsProduction
+          - prod-bucket
+          - dev-bucket
+      VersioningConfiguration:
+        Status: !If [IsProduction, Enabled, Suspended]
+
+  MyQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !If
+        - IsDevelopment
+        - dev-queue
+        - prod-queue
+
+Outputs:
+  BucketName:
+    Value:
+      Fn::If: [CreateBucket, !Ref MyBucket, "no-bucket"]
+
+  Environment:
+    Value: !If [IsProduction, production, non-production]

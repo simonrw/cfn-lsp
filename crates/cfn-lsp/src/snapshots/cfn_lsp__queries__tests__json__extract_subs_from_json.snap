@@ -1,0 +1,22 @@
+---
+source: crates/cfn-lsp/src/queries.rs
+expression: refs
+---
+- typ:
+    Sub:
+      target: "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/test-service-local*:*"
+  start:
+    line: 122
+    col: 34
+  end:
+    line: 122
+    col: 137
+- typ:
+    Sub:
+      target: "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/test-service-local*:*:*"
+  start:
+    line: 133
+    col: 34
+  end:
+    line: 133
+    col: 139

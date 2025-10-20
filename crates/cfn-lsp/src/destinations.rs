@@ -15,6 +15,7 @@ enum State {
     ParsingOutputs,
     ParsingParameters,
     ParsingMappings,
+    ParsingConditions,
     // TODO: other template top level fields
 }
 
@@ -90,6 +91,9 @@ impl<'s> Destinations<'s> {
             } else if trimmed_line == "Parameters:" {
                 self.state = State::ParsingParameters;
                 continue;
+            } else if trimmed_line == "Conditions:" {
+                self.state = State::ParsingConditions;
+                continue;
             }
 
             // we are not opening a new section
@@ -106,6 +110,9 @@ impl<'s> Destinations<'s> {
                 }
                 State::ParsingMappings => {
                     parse_line!(line, line_number, parsed_structure, JumpDestinationType::Mapping, mappings => destinations, true);
+                }
+                State::ParsingConditions => {
+                    parse_line!(line, line_number, parsed_structure, JumpDestinationType::Condition, conditions => destinations, true);
                 }
             }
         }
@@ -146,6 +153,8 @@ struct Template {
     mappings: Option<HashMap<String, serde_yaml::Value>>,
     #[serde(rename = "Parameters")]
     parameters: Option<HashMap<String, serde_yaml::Value>>,
+    #[serde(rename = "Conditions")]
+    conditions: Option<HashMap<String, serde_yaml::Value>>,
 }
 
 #[derive(Debug)]
@@ -184,6 +193,7 @@ pub enum JumpDestinationType {
     Parameter,
     Mapping,
     Output,
+    Condition,
 }
 
 #[derive(Debug)]
@@ -227,6 +237,22 @@ mod tests {
         #[test]
         fn parse_parameters() {
             let contents = include_str!("../testdata/parameters.yml");
+            let mut destinations = Destinations::new(contents);
+            let targets = destinations.definitions();
+            insta::assert_debug_snapshot!(targets);
+        }
+
+        #[test]
+        fn parse_conditions() {
+            let contents = include_str!("../testdata/if.yml");
+            let mut destinations = Destinations::new(contents);
+            let targets = destinations.definitions();
+            insta::assert_debug_snapshot!(targets);
+        }
+
+        #[test]
+        fn parse_mappings() {
+            let contents = include_str!("../testdata/findinmap.yml");
             let mut destinations = Destinations::new(contents);
             let targets = destinations.definitions();
             insta::assert_debug_snapshot!(targets);

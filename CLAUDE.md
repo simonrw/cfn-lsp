@@ -39,6 +39,9 @@ cargo test -p cfn-lsp
 
 # Run tests for a specific module
 cargo test queries::tests
+
+# Approve snapshot changes
+cargo insta review
 ```
 
 ### Linting

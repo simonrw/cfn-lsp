@@ -1,0 +1,20 @@
+Resources:
+  A:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value:
+        Fn::Sub: "${AWS::AccountId}/foo"
+  B:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value: !Fn::Sub "${AWS::AccountId}/foo"
+  C:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value:
+        Fn::Sub:
+          - "${Placeholder}/foo"
+          - Placeholder: test

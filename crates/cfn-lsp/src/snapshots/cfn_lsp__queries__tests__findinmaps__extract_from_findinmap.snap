@@ -1,0 +1,40 @@
+---
+source: crates/cfn-lsp/src/queries.rs
+expression: refs
+---
+- typ:
+    FindInMap:
+      target: RegionMap
+  start:
+    line: 20
+    col: 12
+  end:
+    line: 20
+    col: 21
+- typ:
+    FindInMap:
+      target: RegionMap
+  start:
+    line: 23
+    col: 32
+  end:
+    line: 23
+    col: 41
+- typ:
+    FindInMap:
+      target: EnvironmentMap
+  start:
+    line: 31
+    col: 28
+  end:
+    line: 31
+    col: 42
+- typ:
+    FindInMap:
+      target: RegionMap
+  start:
+    line: 36
+    col: 8
+  end:
+    line: 36
+    col: 17

@@ -1,0 +1,301 @@
+---
+source: crates/cfn-lsp/src/queries.rs
+expression: refs
+---
+- typ:
+    Ref:
+      target: TrustedAccounts
+  start:
+    line: 46
+    col: 21
+  end:
+    line: 46
+    col: 36
+- typ:
+    Ref:
+      target: TrustedAccountsForLookup
+  start:
+    line: 53
+    col: 21
+  end:
+    line: 53
+    col: 45
+- typ:
+    Ref:
+      target: CloudFormationExecutionPolicies
+  start:
+    line: 60
+    col: 21
+  end:
+    line: 60
+    col: 52
+- typ:
+    Ref:
+      target: FileAssetsBucketName
+  start:
+    line: 65
+    col: 17
+  end:
+    line: 65
+    col: 37
+- typ:
+    Ref:
+      target: FileAssetsBucketKmsKeyId
+  start:
+    line: 69
+    col: 13
+  end:
+    line: 69
+    col: 37
+- typ:
+    Ref:
+      target: FileAssetsBucketKmsKeyId
+  start:
+    line: 73
+    col: 13
+  end:
+    line: 73
+    col: 37
+- typ:
+    Ref:
+      target: ContainerAssetsRepositoryName
+  start:
+    line: 78
+    col: 17
+  end:
+    line: 78
+    col: 46
+- typ:
+    Ref:
+      target: PublicAccessBlockConfiguration
+  start:
+    line: 82
+    col: 13
+  end:
+    line: 82
+    col: 43
+- typ:
+    Ref:
+      target: "AWS::AccountId"
+  start:
+    line: 106
+    col: 21
+  end:
+    line: 106
+    col: 35
+- typ:
+    Ref:
+      target: "AWS::AccountId"
+  start:
+    line: 121
+    col: 23
+  end:
+    line: 121
+    col: 37
+- typ:
+    Ref:
+      target: FileAssetsBucketEncryptionKey
+  start:
+    line: 143
+    col: 13
+  end:
+    line: 143
+    col: 42
+- typ:
+    Ref:
+      target: "AWS::NoValue"
+  start:
+    line: 163
+    col: 29
+  end:
+    line: 163
+    col: 41
+- typ:
+    Ref:
+      target: "AWS::NoValue"
+  start:
+    line: 172
+    col: 17
+  end:
+    line: 172
+    col: 29
+- typ:
+    Ref:
+      target: StagingBucket
+  start:
+    line: 181
+    col: 13
+  end:
+    line: 181
+    col: 26
+- typ:
+    Ref:
+      target: "AWS::AccountId"
+  start:
+    line: 229
+    col: 21
+  end:
+    line: 229
+    col: 35
+- typ:
+    Ref:
+      target: TrustedAccounts
+  start:
+    line: 236
+    col: 25
+  end:
+    line: 236
+    col: 40
+- typ:
+    Ref:
+      target: "AWS::NoValue"
+  start:
+    line: 237
+    col: 21
+  end:
+    line: 237
+    col: 33
+- typ:
+    Ref:
+      target: "AWS::AccountId"
+  start:
+    line: 252
+    col: 21
+  end:
+    line: 252
+    col: 35
+- typ:
+    Ref:
+      target: TrustedAccounts
+  start:
+    line: 259
+    col: 25
+  end:
+    line: 259
+    col: 40
+- typ:
+    Ref:
+      target: "AWS::NoValue"
+  start:
+    line: 260
+    col: 21
+  end:
+    line: 260
+    col: 33
+- typ:
+    Ref:
+      target: "AWS::AccountId"
+  start:
+    line: 275
+    col: 21
+  end:
+    line: 275
+    col: 35
+- typ:
+    Ref:
+      target: TrustedAccountsForLookup
+  start:
+    line: 282
+    col: 25
+  end:
+    line: 282
+    col: 49
+- typ:
+    Ref:
+      target: "AWS::NoValue"
+  start:
+    line: 283
+    col: 21
+  end:
+    line: 283
+    col: 33
+- typ:
+    Ref:
+      target: TrustedAccounts
+  start:
+    line: 290
+    col: 25
+  end:
+    line: 290
+    col: 40
+- typ:
+    Ref:
+      target: "AWS::NoValue"
+  start:
+    line: 291
+    col: 21
+  end:
+    line: 291
+    col: 33
+- typ:
+    Ref:
+      target: FilePublishingRole
+  start:
+    line: 340
+    col: 15
+  end:
+    line: 340
+    col: 33
+- typ:
+    Ref:
+      target: ImagePublishingRole
+  start:
+    line: 367
+    col: 15
+  end:
+    line: 367
+    col: 34
+- typ:
+    Ref:
+      target: "AWS::AccountId"
+  start:
+    line: 379
+    col: 21
+  end:
+    line: 379
+    col: 35
+- typ:
+    Ref:
+      target: TrustedAccounts
+  start:
+    line: 386
+    col: 25
+  end:
+    line: 386
+    col: 40
+- typ:
+    Ref:
+      target: "AWS::NoValue"
+  start:
+    line: 387
+    col: 21
+  end:
+    line: 387
+    col: 33
+- typ:
+    Ref:
+      target: "AWS::AccountId"
+  start:
+    line: 415
+    col: 27
+  end:
+    line: 415
+    col: 41
+- typ:
+    Ref:
+      target: CloudFormationExecutionPolicies
+  start:
+    line: 478
+    col: 17
+  end:
+    line: 478
+    col: 48
+- typ:
+    Ref:
+      target: "AWS::NoValue"
+  start:
+    line: 481
+    col: 21
+  end:
+    line: 481
+    col: 33

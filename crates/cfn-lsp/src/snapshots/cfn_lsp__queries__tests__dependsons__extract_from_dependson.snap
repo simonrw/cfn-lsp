@@ -1,0 +1,40 @@
+---
+source: crates/cfn-lsp/src/queries.rs
+expression: refs
+---
+- typ:
+    DependsOn:
+      target: MyBucket
+  start:
+    line: 8
+    col: 15
+  end:
+    line: 8
+    col: 23
+- typ:
+    DependsOn:
+      target: MyQueue
+  start:
+    line: 24
+    col: 8
+  end:
+    line: 24
+    col: 15
+- typ:
+    DependsOn:
+      target: MyBucket
+  start:
+    line: 25
+    col: 8
+  end:
+    line: 25
+    col: 16
+- typ:
+    DependsOn:
+      target: MyTopic
+  start:
+    line: 30
+    col: 8
+  end:
+    line: 30
+    col: 15
